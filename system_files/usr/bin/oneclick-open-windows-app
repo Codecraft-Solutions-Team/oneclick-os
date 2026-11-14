@@ -11,6 +11,13 @@ if [[ -z "$file" || ! -f "$file" ]]; then
     exit 1
 fi
 
+config_file="${XDG_CONFIG_HOME:-$HOME/.config}/oneclick/windows-exe-enabled"
+if [[ -f "$config_file" ]] && [[ "$(tr -d '[:space:]' < "$config_file")" == "false" ]]; then
+    kdialog --title "$title" --sorry \
+        "Opening Windows programs by double-clicking is turned off. You can turn it back on in Settings under Windows Apps."
+    exit 0
+fi
+
 name="$(basename "$file")"
 
 # Windows programs are built for Intel and AMD processors.

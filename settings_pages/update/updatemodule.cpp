@@ -53,14 +53,16 @@ void UpdateModule::setState(const QString &state, const QString &message)
     Q_EMIT stateChanged();
 }
 
-void UpdateModule::runHelper(const QStringList &args, bool isDownload, bool restartAfter)
+void UpdateModule::runHelper(const QString &initialState, const QStringList &args, bool isDownload, bool restartAfter)
 {
     if (m_process) {
         return; // one thing at a time
     }
+    setState(initialState);
     m_isDownload = isDownload;
     m_restartAfter = restartAfter;
     m_lastOutput.clear();
+    m_checkResult.clear();
     if (isDownload) {
         m_totalMb = 0;
         m_doneMb = 0;
@@ -79,6 +81,14 @@ void UpdateModule::runHelper(const QStringList &args, bool isDownload, bool rest
             onHelperLine(line.trimmed());
         }
     });
+    connect(m_process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart && m_process) {
+            m_progressTimer.stop();
+            m_process->deleteLater();
+            m_process = nullptr;
+            setState(QStringLiteral("error"), QStringLiteral("Could not run the update helper."));
+        }
+    });
     connect(m_process, &QProcess::finished, this, [this, args](int code, QProcess::ExitStatus) {
         m_progressTimer.stop();
         m_process->deleteLater();
@@ -94,9 +104,10 @@ void UpdateModule::runHelper(const QStringList &args, bool isDownload, bool rest
             return;
         }
         if (command == QLatin1String("check")) {
-            if (m_lastOutput == QLatin1String("STAGED")) {
+            const QString result = m_checkResult.isEmpty() ? m_lastOutput : m_checkResult;
+            if (result == QLatin1String("STAGED")) {
                 setState(QStringLiteral("ready"));
-            } else if (m_lastOutput == QLatin1String("AVAILABLE")) {
+            } else if (result == QLatin1String("AVAILABLE")) {
                 setState(QStringLiteral("available"));
             } else {
                 setState(QStringLiteral("uptodate"));
@@ -120,6 +131,9 @@ void UpdateModule::onHelperLine(const QString &line)
 {
     if (line.isEmpty()) {
         return;
+    }
+    if (line == QLatin1String("STAGED") || line == QLatin1String("AVAILABLE") || line == QLatin1String("NONE")) {
+        m_checkResult = line;
     }
     m_lastOutput = line;
     // e.g. "layers already present: 258; layers needed: 1 (303.0 MB)"
@@ -165,19 +179,17 @@ void UpdateModule::sampleProgress()
 
 void UpdateModule::check()
 {
-    setState(QStringLiteral("checking"));
-    runHelper({QStringLiteral("check"), m_channel}, false, false);
+    runHelper(QStringLiteral("checking"), {QStringLiteral("check"), m_channel}, false, false);
 }
 
 void UpdateModule::download(bool restartAfter)
 {
-    setState(QStringLiteral("downloading"));
-    runHelper({QStringLiteral("download"), m_channel}, true, restartAfter);
+    runHelper(QStringLiteral("downloading"), {QStringLiteral("download"), m_channel}, true, restartAfter);
 }
 
 void UpdateModule::setChannel(const QString &channel)
 {
-    if (channel == m_channel || (channel != QLatin1String("full") && channel != QLatin1String("security"))) {
+    if (m_process || channel == m_channel || (channel != QLatin1String("full") && channel != QLatin1String("security"))) {
         return;
     }
     m_channel = channel;
@@ -187,14 +199,12 @@ void UpdateModule::setChannel(const QString &channel)
 
 void UpdateModule::installVersion(const QString &version, bool restartAfter)
 {
-    setState(QStringLiteral("downloading"));
-    runHelper({QStringLiteral("version"), version}, true, restartAfter);
+    runHelper(QStringLiteral("downloading"), {QStringLiteral("version"), version}, true, restartAfter);
 }
 
 void UpdateModule::rollback()
 {
-    setState(QStringLiteral("downloading"));
-    runHelper({QStringLiteral("rollback")}, false, false);
+    runHelper(QStringLiteral("rollingback"), {QStringLiteral("rollback")}, false, false);
 }
 
 void UpdateModule::restart()
@@ -211,6 +221,11 @@ void UpdateModule::loadVersions()
             Q_EMIT versionsChanged();
         }
         list->deleteLater();
+    });
+    connect(list, &QProcess::errorOccurred, this, [list](QProcess::ProcessError err) {
+        if (err == QProcess::FailedToStart) {
+            list->deleteLater();
+        }
     });
     list->start(HELPER, {QStringLiteral("versions")}); // no password needed to list
 }

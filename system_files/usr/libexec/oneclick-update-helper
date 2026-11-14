@@ -13,21 +13,46 @@ IMAGE=$(cat /usr/share/oneclick/image)
 VERSION=$(cat /usr/share/oneclick/version)
 
 tag_for() { [[ "$1" == "security" ]] && echo "${VERSION}" || echo "latest"; }
-status() { bootc status --json | python3 -c "import sys,json; s=json.load(sys.stdin)['status']; $1"; }
-booted_ref()    { status "print(s['booted']['image']['image']['image'])"; }
-booted_digest() { status "print(s['booted']['image']['imageDigest'])"; }
+status() {
+    bootc status --json 2>/dev/null | python3 -c "import sys,json
+try:
+    s=json.load(sys.stdin).get('status') or {}
+except Exception:
+    s={}
+$1"
+}
+booted_ref()    { status "print((((s.get('booted') or {}).get('image') or {}).get('image') or {}).get('image', ''))"; }
+booted_digest() { status "print(((s.get('booted') or {}).get('image') or {}).get('imageDigest', ''))"; }
 has_staged()    { status "print('yes' if s.get('staged') else '')"; }
 remember() { mkdir -p /var/lib/oneclick && echo "$1" > /var/lib/oneclick/channel; }
 get() {  # get <tag>: upgrade in place if already following that tag, otherwise switch to it
     if [[ "$(booted_ref)" == "${IMAGE}:$1" ]]; then bootc upgrade; else bootc switch "${IMAGE}:$1"; fi
+}
+print_skopeo_error() {
+    local err="$1" fallback="$2"
+    if grep -qiE '401|403|unauthorized|denied' <<< "$err"; then
+        echo "Updates cannot be reached yet (package access is private)." >&2
+    elif [[ -n "$err" ]]; then
+        echo "${err##*$'\n'}" >&2
+    elif [[ -n "$fallback" ]]; then
+        echo "$fallback" >&2
+    fi
 }
 
 case "${1:-}" in
     check)
         if [[ -n "$(has_staged)" ]]; then echo STAGED; exit 0; fi
         tag=$(tag_for "${2:-full}")
-        remote=$(skopeo inspect --no-tags --format '{{.Digest}}' "docker://${IMAGE}:${tag}") || exit 1
-        if [[ "${remote}" == "$(booted_digest)" ]]; then echo NONE; else echo AVAILABLE; fi ;;
+        err_file=$(mktemp)
+        if ! remote=$(skopeo inspect --no-tags --format '{{.Digest}}' "docker://${IMAGE}:${tag}" 2>"$err_file"); then
+            err=$(<"$err_file")
+            rm -f "$err_file"
+            print_skopeo_error "$err" "Could not check for updates."
+            exit 1
+        fi
+        rm -f "$err_file"
+        local_digest="$(booted_digest)"
+        if [[ -n "${remote}" && "${remote}" == "${local_digest}" ]]; then echo NONE; else echo AVAILABLE; fi ;;
     download)
         get "$(tag_for "${2:-full}")" && remember "${2:-full}" ;;
     version)
@@ -36,10 +61,23 @@ case "${1:-}" in
     rollback)
         bootc rollback ;;
     versions)
-        skopeo list-tags "docker://${IMAGE}" | python3 -c '
+        err_file=$(mktemp)
+        if ! tags_json=$(skopeo list-tags "docker://${IMAGE}" 2>"$err_file"); then
+            err=$(<"$err_file")
+            rm -f "$err_file"
+            print_skopeo_error "$err" ""
+            exit 1
+        fi
+        rm -f "$err_file"
+        python3 -c '
 import sys, json, re
-tags = [t for t in json.load(sys.stdin)["Tags"] if re.fullmatch(r"\d+\.\d+", t)]
-print("\n".join(sorted(tags, key=lambda t: [int(p) for p in t.split(".")], reverse=True)))' ;;
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+tags = [t for t in (data.get("Tags") or []) if isinstance(t, str) and re.fullmatch(r"\d+\.\d+", t)]
+if tags:
+    print("\n".join(sorted(tags, key=lambda t: [int(p) for p in t.split(".")], reverse=True)))' <<< "$tags_json" ;;
     *)
         echo "usage: $0 check|download|version|rollback|versions" >&2; exit 2 ;;
 esac

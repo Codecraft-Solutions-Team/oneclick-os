@@ -12,7 +12,7 @@
 class UpdateModule : public KQuickConfigModule
 {
     Q_OBJECT
-    // idle, checking, available, uptodate, downloading, ready, error
+    // idle, checking, available, uptodate, downloading, rollingback, ready, error
     Q_PROPERTY(QString state READ state NOTIFY stateChanged)
     Q_PROPERTY(QString message READ message NOTIFY stateChanged)
     Q_PROPERTY(QString currentVersion READ currentVersion CONSTANT)
@@ -50,7 +50,7 @@ Q_SIGNALS:
 
 private:
     void setState(const QString &state, const QString &message = QString());
-    void runHelper(const QStringList &args, bool isDownload, bool restartAfter);
+    void runHelper(const QString &initialState, const QStringList &args, bool isDownload, bool restartAfter);
     void onHelperLine(const QString &line);
     void sampleProgress();
     static qint64 receivedBytes();
@@ -72,4 +72,5 @@ private:
     bool m_restartAfter = false;
     bool m_isDownload = false;
     QString m_lastOutput;
+    QString m_checkResult;
 };

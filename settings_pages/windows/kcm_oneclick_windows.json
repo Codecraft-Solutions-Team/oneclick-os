@@ -1,0 +1,10 @@
+{
+    "KPlugin": {
+        "Name": "Windows Apps",
+        "Description": "Choose how Windows .exe programs open and install Bottles",
+        "Icon": "oneclick-windows-apps"
+    },
+    "X-KDE-Keywords": "windows,exe,msi,bottles,wine,programs",
+    "X-KDE-System-Settings-Parent-Category": "applications",
+    "X-KDE-Weight": 1
+}

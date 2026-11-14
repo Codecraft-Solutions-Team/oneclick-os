@@ -9,6 +9,10 @@ import org.kde.kcmutils as KCM
 KCM.SimpleKCM {
     id: page
 
+    readonly property bool busy: kcm.state === "downloading"
+                              || kcm.state === "checking"
+                              || kcm.state === "rollingback"
+
     Component.onCompleted: {
         kcm.check()
         kcm.loadVersions()
@@ -49,16 +53,21 @@ KCM.SimpleKCM {
                                 available: kcm.channel === "security" ? "Security fixes are available" : "A new version is available",
                                 uptodate: "You're up to date",
                                 downloading: "Downloading...",
+                                rollingback: "Undoing the last update...",
                                 ready: "Ready. Restart to finish",
                                 error: "Something went wrong"
-                            })[kcm.state]
+                            })[kcm.state] || "Check for updates"
                         }
                         QQC2.Label {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             opacity: 0.7
-                            text: kcm.state === "error" ? ("Check your internet connection and try again.\n" + kcm.message)
+                            text: kcm.state === "error"
+                                  ? (kcm.message.indexOf("private") !== -1
+                                     ? kcm.message
+                                     : ("Check your internet connection and try again." + (kcm.message ? "\n" + kcm.message : "")))
                                 : kcm.state === "downloading" ? "You can keep using your PC. Nothing changes until you restart."
+                                : kcm.state === "rollingback" ? "Restoring the version from before your last update..."
                                 : kcm.state === "ready" ? "Your open apps will close when you restart."
                                 : "You have OneClick OS " + (kcm.currentVersion || "(development build)")
                         }
@@ -67,18 +76,19 @@ KCM.SimpleKCM {
 
                 // Download progress: bar, megabytes, time left
                 ColumnLayout {
-                    visible: kcm.state === "downloading"
+                    visible: kcm.state === "downloading" || kcm.state === "rollingback"
                     Layout.fillWidth: true
                     spacing: Kirigami.Units.smallSpacing
                     QQC2.ProgressBar {
                         Layout.fillWidth: true
-                        indeterminate: kcm.totalMb <= 0
+                        indeterminate: kcm.state === "rollingback" || kcm.totalMb <= 0
                         from: 0
                         to: Math.max(1, kcm.totalMb)
                         value: kcm.doneMb
                         Behavior on value { NumberAnimation { duration: 900 } }
                     }
                     RowLayout {
+                        visible: kcm.state === "downloading"
                         Layout.fillWidth: true
                         QQC2.Label {
                             text: kcm.totalMb > 0
@@ -126,7 +136,7 @@ KCM.SimpleKCM {
         // ---- what to receive ---------------------------------------------
         Kirigami.FormLayout {
             Layout.fillWidth: true
-            enabled: kcm.state !== "downloading" && kcm.state !== "checking"
+            enabled: !page.busy
             QQC2.ButtonGroup { id: channels }
             QQC2.RadioButton {
                 Kirigami.FormData.label: "Updates to receive:"
@@ -158,7 +168,7 @@ KCM.SimpleKCM {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
-            enabled: kcm.state !== "downloading" && kcm.state !== "checking"
+            enabled: !page.busy
 
             Repeater {
                 model: kcm.versions
@@ -199,7 +209,7 @@ KCM.SimpleKCM {
         QQC2.Button {
             text: "Undo the last update"
             icon.name: "edit-undo"
-            enabled: kcm.state !== "downloading" && kcm.state !== "checking"
+            enabled: !page.busy
             onClicked: kcm.rollback()
             QQC2.ToolTip.text: "Go back to exactly what this PC ran before the last update"
             QQC2.ToolTip.visible: hovered

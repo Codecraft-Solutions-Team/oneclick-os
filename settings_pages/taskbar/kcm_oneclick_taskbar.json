@@ -1,0 +1,10 @@
+{
+    "KPlugin": {
+        "Name": "Taskbar",
+        "Description": "Hide the taskbar automatically, make it float, move it or resize it",
+        "Icon": "oneclick-taskbar"
+    },
+    "X-KDE-Keywords": "taskbar,panel,auto-hide,autohide,floating,dock,top,bottom,size",
+    "X-KDE-System-Settings-Parent-Category": "workspace",
+    "X-KDE-Weight": 1
+}

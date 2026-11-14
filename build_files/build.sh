@@ -19,7 +19,7 @@ setcfg() {
 
 ### System files (handlers, default app associations, icons, boot settings)
 cp -avf /ctx/system_files/. /
-chmod 755 /usr/bin/oneclick-open-windows-app /usr/bin/oneclick-update /usr/bin/oneclick-taskbar /usr/libexec/oneclick-update-helper
+chmod 755 /usr/bin/oneclick-open-windows-app /usr/bin/oneclick-update /usr/libexec/oneclick-update-helper
 
 ### Branding
 # Only the display name and links change. ID and ID_LIKE stay as the base image set
@@ -41,6 +41,20 @@ echo "${IMAGE_REGISTRY}/${IMAGE_NAME}" > /usr/share/oneclick/image
 ### Our own Settings pages (compiled in the first stage of the Containerfile)
 cp -a /ctx/pages/. /
 install -Dm644 /usr/share/icons/OneClick/scalable/places/start-here.svg /usr/share/pixmaps/oneclick-logo.svg
+
+### About This PC
+VERSION_VAL="$(cat /usr/share/oneclick/version)"
+setcfg kcm-about-distrorc General LogoPath "/usr/share/pixmaps/oneclick-logo.svg"
+setcfg kcm-about-distrorc General Website "${BRAND_URL}"
+setcfg kcm-about-distrorc General Version "${VERSION_VAL}"
+setcfg kcm-about-distrorc General UseOSReleaseVersion "false"
+setcfg kcm-about-distrorc General ShowSoftwareSection "false"
+if [[ -d "${FEDORA_XDG}" ]]; then
+    cp -f /etc/xdg/kcm-about-distrorc "${FEDORA_XDG}/kcm-about-distrorc"
+fi
+if [[ -f /usr/etc/xdg/kcm-about-distrorc ]]; then
+    cp -f /etc/xdg/kcm-about-distrorc /usr/etc/xdg/kcm-about-distrorc
+fi
 
 ### Welcome window (shown once after first login)
 setcfg plasma-welcomerc General IntroText "Welcome to ${BRAND_NAME}. Everything is already set up: your drivers, your apps and your games library are ready to go. This short tour shows you where things are."
@@ -117,8 +131,63 @@ setcfg kdeglobals KDE AutomaticLookAndFeel false
 setcfg kdeglobals General ColorScheme OneClickDark
 setcfg kdeglobals General AccentColor 45,212,191
 setcfg ksplashrc KSplash Theme org.oneclick.desktop
-kwriteconfig6 --file /etc/xdg/kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image \
-    --group General --key Image "file:///usr/share/wallpapers/OneClick/"
+
+### Login & lock screen wallpaper and defaults
+rm -rf /usr/share/wallpapers/Next
+ln -s /usr/share/wallpapers/OneClick /usr/share/wallpapers/Next
+for fallback in default Fedora; do
+    if [[ -e "/usr/share/wallpapers/${fallback}" || -L "/usr/share/wallpapers/${fallback}" ]]; then
+        rm -rf "/usr/share/wallpapers/${fallback}"
+        ln -s /usr/share/wallpapers/OneClick "/usr/share/wallpapers/${fallback}"
+    fi
+done
+
+for lockcfg in /etc/xdg/kscreenlockerrc "${FEDORA_XDG}/kscreenlockerrc" /usr/etc/xdg/kscreenlockerrc; do
+    if [[ "$lockcfg" == "/etc/xdg/kscreenlockerrc" ]] \
+        || [[ "$lockcfg" == "${FEDORA_XDG}/kscreenlockerrc" && -d "${FEDORA_XDG}" ]] \
+        || [[ -f "$lockcfg" ]]; then
+        kwriteconfig6 --file "$lockcfg" --group Greeter --key WallpaperPlugin org.oneclick.wallpaper
+        kwriteconfig6 --file "$lockcfg" --group Greeter --group Wallpaper --group org.oneclick.wallpaper \
+            --group General --key Image "file:///usr/share/wallpapers/OneClick/contents/images/3840x2160.jpg"
+        kwriteconfig6 --file "$lockcfg" --group Greeter --group Wallpaper --group org.kde.image \
+            --group General --key Image "file:///usr/share/wallpapers/OneClick/contents/images/3840x2160.jpg"
+    fi
+done
+
+mkdir -p /usr/lib/plasmalogin
+kwriteconfig6 --file /usr/lib/plasmalogin/defaults.conf --group Greeter --key WallpaperPluginId org.oneclick.wallpaper
+kwriteconfig6 --file /usr/lib/plasmalogin/defaults.conf --group Greeter --key ShowClock true
+kwriteconfig6 --file /usr/lib/plasmalogin/defaults.conf --group Greeter --group Wallpaper \
+    --group org.oneclick.wallpaper --group General --key Image "file:///usr/share/wallpapers/OneClick/contents/images/3840x2160.jpg"
+kwriteconfig6 --file /usr/lib/plasmalogin/defaults.conf --group Greeter --group Wallpaper \
+    --group org.oneclick.wallpaper --group General --key Blur false
+kwriteconfig6 --file /usr/lib/plasmalogin/defaults.conf --group Users --key RememberLastSession true
+kwriteconfig6 --file /usr/lib/plasmalogin/defaults.conf --group Users --key RememberLastUser true
+kwriteconfig6 --file /usr/lib/plasmalogin/defaults.conf --group Users --key ReuseSession true
+if [[ -d /usr/lib/plasmalogin/plasmalogin.conf.d ]]; then
+    cp -f /etc/plasmalogin.conf.d/10-oneclick.conf /usr/lib/plasmalogin/plasmalogin.conf.d/10-oneclick.conf
+fi
+
+mkdir -p /usr/share/oneclick/plasmalogin
+cat > /usr/share/oneclick/plasmalogin/kdeglobals <<'PLKDEG'
+[General]
+ColorScheme=OneClickDark
+AccentColor=45,212,191
+
+[Icons]
+Theme=OneClick
+
+[KDE]
+LookAndFeelPackage=org.oneclick.desktop
+DefaultLightLookAndFeel=org.oneclick.desktop
+DefaultDarkLookAndFeel=org.oneclick.desktop
+AutomaticLookAndFeel=false
+SingleClick=false
+PLKDEG
+cp -f /etc/plasmalogin.conf /usr/share/oneclick/plasmalogin/plasmaloginrc
+if ! id plasmalogin >/dev/null 2>&1; then
+    rm -f /usr/lib/tmpfiles.d/oneclick-plasmalogin.conf
+fi
 # Window title bars: bigger buttons, title on the left, like Windows.
 setcfg breezerc Windeco ButtonSize ButtonLarge
 setcfg breezerc Windeco TitleAlignment AlignLeft
@@ -153,6 +222,7 @@ rename org.kde.plasma-welcome.desktop   "Welcome"          "Welcome tour"
 rename kdesystemsettings.desktop        "Settings"         "Settings"
 rename systemsettings.desktop           "Settings"         "Settings"
 rename org.kde.kinfocenter.desktop      "About This PC"    "Hardware and system details"
+rename kcm_about-distro.desktop         "About This PC"    "Hardware and system details"
 rename org.kde.khelpcenter.desktop      "Help"             "Help"
 # Settings pages that name the project behind them
 rename kcm_kwallet5.desktop             "Saved Passwords"
