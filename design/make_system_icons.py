@@ -82,6 +82,11 @@ SETTINGS = {
                     f'<circle cx="37" cy="24" r="8" fill="#0ea5e9"/><circle cx="46" cy="29" r="6" fill="#0ea5e9"/><rect x="26" y="25" width="26" height="10" rx="5" fill="#0ea5e9"/>'
                     f'<circle cx="23" cy="34" r="7" {F}/><circle cx="33" cy="30" r="9.5" {F}/><circle cx="42" cy="36" r="6" {F}/><rect x="16" y="34" width="32" height="12" rx="6" {F}/>',
                     ["oneclick-cloud-drive", "oneclick-cloud-drives"]),
+    "look": ("#0f766e",
+             f'<rect x="12" y="15" width="40" height="34" rx="4" {W}/><path d="M32 15v34" {W}/>'
+             f'<rect x="15" y="40" width="13" height="5" rx="1.500" {F}/>'
+             f'<rect x="36" y="19" width="13" height="3.500" rx="1" {F}/><rect x="37.500" y="40.500" width="10" height="4.500" rx="2" fill="#2dd4bf"/>',
+             ["oneclick-look"]),
 }
 
 # --- Tray icons: 22px grid, drawn in the taskbar's text colour ---------------------------

@@ -13,6 +13,10 @@ Welcome.Page {
     heading: i18n("Where things are")
     description: i18n("OneClick OS keeps your desktop familiar and predictable.")
 
+    readonly property bool animationsEnabled: Kirigami.Units.longDuration > 0
+    readonly property int animFast: animationsEnabled ? Math.max(40, Math.round(Kirigami.Units.shortDuration * 0.6)) : 0
+    readonly property int animLong: animationsEnabled ? Kirigami.Units.longDuration : 0
+
     QQC2.ScrollView {
         id: scroller
         anchors.fill: parent
@@ -21,8 +25,15 @@ Welcome.Page {
         contentWidth: availableWidth
 
         ColumnLayout {
+            id: pageContent
             width: scroller.availableWidth
             spacing: 14
+            opacity: root.animationsEnabled ? 0 : 1
+            Component.onCompleted: opacity = 1
+            Behavior on opacity {
+                enabled: root.animationsEnabled
+                NumberAnimation { duration: root.animLong; easing.type: Easing.OutCubic }
+            }
 
             // Flat schematic preview of taskbar, Start menu, and app window using QtQuick Rectangles.
             Rectangle {
@@ -491,11 +502,20 @@ Welcome.Page {
                     id: settingsBtn
                     text: i18n("Open Settings")
                     onClicked: Welcome.Controller.runCommand("systemsettings")
+                    scale: !root.animationsEnabled ? 1 : (down ? 0.98 : (hovered ? 1.02 : 1))
+                    Behavior on scale {
+                        enabled: root.animationsEnabled
+                        NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+                    }
                     background: Rectangle {
                         color: settingsBtn.hovered ? "#22304d" : "#0b1224"
                         border.color: "#2dd4bf"
                         border.width: 1
                         radius: 6
+                        Behavior on color {
+                            enabled: root.animationsEnabled
+                            ColorAnimation { duration: root.animFast }
+                        }
                     }
                     contentItem: QQC2.Label {
                         text: settingsBtn.text
@@ -514,11 +534,24 @@ Welcome.Page {
                     id: taskbarBtn
                     text: i18n("Taskbar Settings")
                     onClicked: Welcome.Controller.runCommand("systemsettings kcm_oneclick_taskbar")
+                    scale: !root.animationsEnabled ? 1 : (down ? 0.98 : (hovered ? 1.02 : 1))
+                    Behavior on scale {
+                        enabled: root.animationsEnabled
+                        NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+                    }
                     background: Rectangle {
                         color: taskbarBtn.hovered ? "#22304d" : "#0b1224"
-                        border.color: "#22304d"
+                        border.color: taskbarBtn.hovered ? "#2dd4bf" : "#22304d"
                         border.width: 1
                         radius: 6
+                        Behavior on color {
+                            enabled: root.animationsEnabled
+                            ColorAnimation { duration: root.animFast }
+                        }
+                        Behavior on border.color {
+                            enabled: root.animationsEnabled
+                            ColorAnimation { duration: root.animFast }
+                        }
                     }
                     contentItem: QQC2.Label {
                         text: taskbarBtn.text

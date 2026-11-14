@@ -1,0 +1,13 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Id": "org.oneclick.mac",
+        "Name": "OneClick Mac Style",
+        "Description": "Top global menu bar, centered floating magnifying dock, and translucent dark glass",
+        "Authors": [ { "Name": "OneClick OS" } ],
+        "Category": "",
+        "License": "Apache-2.0",
+        "Version": "0.1"
+    },
+    "X-Plasma-APIVersion": "2"
+}

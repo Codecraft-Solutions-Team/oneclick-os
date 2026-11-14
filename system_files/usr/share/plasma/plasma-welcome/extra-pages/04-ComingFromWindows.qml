@@ -13,6 +13,10 @@ Welcome.Page {
     heading: i18n("Coming from Windows")
     description: i18n("An honest guide to what runs right away and what works differently on OneClick OS.")
 
+    readonly property bool animationsEnabled: Kirigami.Units.longDuration > 0
+    readonly property int animFast: animationsEnabled ? Math.max(40, Math.round(Kirigami.Units.shortDuration * 0.6)) : 0
+    readonly property int animLong: animationsEnabled ? Kirigami.Units.longDuration : 0
+
     QQC2.ScrollView {
         id: scroller
         anchors.fill: parent
@@ -23,6 +27,12 @@ Welcome.Page {
         ColumnLayout {
             width: scroller.availableWidth
             spacing: 12
+            opacity: root.animationsEnabled ? 0 : 1
+            Component.onCompleted: opacity = 1
+            Behavior on opacity {
+                enabled: root.animationsEnabled
+                NumberAnimation { duration: root.animLong; easing.type: Easing.OutCubic }
+            }
 
             // What works out of the box
             Rectangle {
@@ -168,11 +178,20 @@ Welcome.Page {
                     id: winAppsBtn
                     text: i18n("Open Windows Apps Settings")
                     onClicked: Welcome.Controller.runCommand("systemsettings kcm_oneclick_windows")
+                    scale: !root.animationsEnabled ? 1 : (down ? 0.98 : (hovered ? 1.02 : 1))
+                    Behavior on scale {
+                        enabled: root.animationsEnabled
+                        NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+                    }
                     background: Rectangle {
                         color: winAppsBtn.hovered ? "#22304d" : "#0b1224"
                         border.color: "#2dd4bf"
                         border.width: 1
                         radius: 6
+                        Behavior on color {
+                            enabled: root.animationsEnabled
+                            ColorAnimation { duration: root.animFast }
+                        }
                     }
                     contentItem: QQC2.Label {
                         text: winAppsBtn.text
@@ -191,11 +210,24 @@ Welcome.Page {
                     id: cloudBtn
                     text: i18n("Open Cloud Drives Settings")
                     onClicked: Welcome.Controller.runCommand("systemsettings kcm_oneclick_cloud")
+                    scale: !root.animationsEnabled ? 1 : (down ? 0.98 : (hovered ? 1.02 : 1))
+                    Behavior on scale {
+                        enabled: root.animationsEnabled
+                        NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+                    }
                     background: Rectangle {
                         color: cloudBtn.hovered ? "#22304d" : "#0b1224"
-                        border.color: "#22304d"
+                        border.color: cloudBtn.hovered ? "#2dd4bf" : "#22304d"
                         border.width: 1
                         radius: 6
+                        Behavior on color {
+                            enabled: root.animationsEnabled
+                            ColorAnimation { duration: root.animFast }
+                        }
+                        Behavior on border.color {
+                            enabled: root.animationsEnabled
+                            ColorAnimation { duration: root.animFast }
+                        }
                     }
                     contentItem: QQC2.Label {
                         text: cloudBtn.text

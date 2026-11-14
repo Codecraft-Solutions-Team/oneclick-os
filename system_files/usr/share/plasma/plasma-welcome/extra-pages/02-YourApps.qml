@@ -13,6 +13,10 @@ Welcome.Page {
     heading: i18n("Your apps")
     description: i18n("Choose a starter set or pick individual apps to install from Flathub. Nothing installs without your click.")
 
+    readonly property bool animationsEnabled: Kirigami.Units.longDuration > 0
+    readonly property int animFast: animationsEnabled ? Math.max(40, Math.round(Kirigami.Units.shortDuration * 0.6)) : 0
+    readonly property int animLong: animationsEnabled ? Kirigami.Units.longDuration : 0
+
     readonly property var presets: [
         {
             name: "Everyday",
@@ -174,6 +178,12 @@ Welcome.Page {
         ColumnLayout {
             width: scroller.availableWidth
             spacing: 14
+            opacity: root.animationsEnabled ? 0 : 1
+            Component.onCompleted: opacity = 1
+            Behavior on opacity {
+                enabled: root.animationsEnabled
+                NumberAnimation { duration: root.animLong; easing.type: Easing.OutCubic }
+            }
 
             // Starter sets row
             ColumnLayout {
@@ -196,15 +206,29 @@ Welcome.Page {
                     Repeater {
                         model: root.presets
                         delegate: Rectangle {
+                            id: presetCard
                             required property var modelData
                             readonly property bool isActive: root.activePreset === modelData.name
 
                             Layout.fillWidth: true
                             implicitHeight: presetCol.implicitHeight + 18
                             color: isActive ? "#0f2433" : (presetMouse.containsMouse ? "#111b33" : "#0b1224")
-                            border.color: isActive ? "#2dd4bf" : "#22304d"
+                            border.color: isActive ? "#2dd4bf" : (presetMouse.containsMouse ? "#3b527a" : "#22304d")
                             border.width: 1
                             radius: 8
+                            scale: !root.animationsEnabled ? 1 : (presetMouse.pressed ? 0.98 : (presetMouse.containsMouse ? 1.02 : 1))
+                            Behavior on color {
+                                enabled: root.animationsEnabled
+                                ColorAnimation { duration: root.animFast }
+                            }
+                            Behavior on border.color {
+                                enabled: root.animationsEnabled
+                                ColorAnimation { duration: root.animFast }
+                            }
+                            Behavior on scale {
+                                enabled: root.animationsEnabled
+                                NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+                            }
 
                             ColumnLayout {
                                 id: presetCol
@@ -268,9 +292,22 @@ Welcome.Page {
                             Layout.fillWidth: true
                             implicitHeight: appRow.implicitHeight + 16
                             color: checked ? "#0f2433" : (appMouse.containsMouse ? "#111b33" : "#0b1224")
-                            border.color: checked ? "#2dd4bf" : "#22304d"
+                            border.color: checked ? "#2dd4bf" : (appMouse.containsMouse ? "#3b527a" : "#22304d")
                             border.width: 1
                             radius: 8
+                            scale: !root.animationsEnabled ? 1 : (appMouse.pressed ? 0.98 : (appMouse.containsMouse ? 1.015 : 1))
+                            Behavior on color {
+                                enabled: root.animationsEnabled
+                                ColorAnimation { duration: root.animFast }
+                            }
+                            Behavior on border.color {
+                                enabled: root.animationsEnabled
+                                ColorAnimation { duration: root.animFast }
+                            }
+                            Behavior on scale {
+                                enabled: root.animationsEnabled
+                                NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+                            }
 
                             RowLayout {
                                 id: appRow
@@ -286,6 +323,14 @@ Welcome.Page {
                                     color: checked ? "#2dd4bf" : "#0a1020"
                                     border.color: checked ? "#2dd4bf" : "#22304d"
                                     border.width: 1
+                                    Behavior on color {
+                                        enabled: root.animationsEnabled
+                                        ColorAnimation { duration: root.animFast }
+                                    }
+                                    Behavior on border.color {
+                                        enabled: root.animationsEnabled
+                                        ColorAnimation { duration: root.animFast }
+                                    }
 
                                     Rectangle {
                                         width: 8
@@ -293,7 +338,16 @@ Welcome.Page {
                                         radius: 2
                                         anchors.centerIn: parent
                                         color: "#042f2e"
-                                        visible: checked
+                                        opacity: checked ? 1.0 : 0.0
+                                        scale: checked ? 1.0 : 0.4
+                                        Behavior on opacity {
+                                            enabled: root.animationsEnabled
+                                            NumberAnimation { duration: root.animFast }
+                                        }
+                                        Behavior on scale {
+                                            enabled: root.animationsEnabled
+                                            NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+                                        }
                                     }
                                 }
 
@@ -428,11 +482,24 @@ Welcome.Page {
                             visible: root.selectedIds().length > 0 && !root.launching
                             text: i18n("Clear")
                             onClicked: root.clearSelection()
+                            scale: !root.animationsEnabled ? 1 : (down ? 0.98 : (hovered ? 1.02 : 1))
+                            Behavior on scale {
+                                enabled: root.animationsEnabled
+                                NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+                            }
                             background: Rectangle {
                                 color: clearBtn.hovered ? "#22304d" : "#0a1020"
-                                border.color: "#22304d"
+                                border.color: clearBtn.hovered ? "#2dd4bf" : "#22304d"
                                 border.width: 1
                                 radius: 6
+                                Behavior on color {
+                                    enabled: root.animationsEnabled
+                                    ColorAnimation { duration: root.animFast }
+                                }
+                                Behavior on border.color {
+                                    enabled: root.animationsEnabled
+                                    ColorAnimation { duration: root.animFast }
+                                }
                             }
                             contentItem: QQC2.Label {
                                 text: clearBtn.text
@@ -451,11 +518,20 @@ Welcome.Page {
                             enabled: root.selectedIds().length > 0 && !root.launching
                             text: root.launching ? i18n("Starting installer...") : i18n("Install selected apps")
                             onClicked: root.installSelected()
+                            scale: !root.animationsEnabled || !enabled ? 1 : (down ? 0.98 : (hovered ? 1.02 : 1))
+                            Behavior on scale {
+                                enabled: root.animationsEnabled
+                                NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+                            }
                             background: Rectangle {
                                 color: !installBtn.enabled
                                     ? "#1e293b"
                                     : (installBtn.hovered ? "#5eead4" : "#2dd4bf")
                                 radius: 6
+                                Behavior on color {
+                                    enabled: root.animationsEnabled
+                                    ColorAnimation { duration: root.animFast }
+                                }
                             }
                             contentItem: QQC2.Label {
                                 text: installBtn.text

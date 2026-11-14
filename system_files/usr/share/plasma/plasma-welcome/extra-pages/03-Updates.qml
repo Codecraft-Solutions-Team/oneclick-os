@@ -13,6 +13,10 @@ Welcome.Page {
     heading: i18n("Updates are your choice")
     description: i18n("OneClick OS never installs updates behind your back or restarts your computer without permission.")
 
+    readonly property bool animationsEnabled: Kirigami.Units.longDuration > 0
+    readonly property int animFast: animationsEnabled ? Math.max(40, Math.round(Kirigami.Units.shortDuration * 0.6)) : 0
+    readonly property int animLong: animationsEnabled ? Kirigami.Units.longDuration : 0
+
     QQC2.ScrollView {
         id: scroller
         anchors.fill: parent
@@ -23,6 +27,12 @@ Welcome.Page {
         ColumnLayout {
             width: scroller.availableWidth
             spacing: 12
+            opacity: root.animationsEnabled ? 0 : 1
+            Component.onCompleted: opacity = 1
+            Behavior on opacity {
+                enabled: root.animationsEnabled
+                NumberAnimation { duration: root.animLong; easing.type: Easing.OutCubic }
+            }
 
             Rectangle {
                 Layout.fillWidth: true
@@ -126,9 +136,18 @@ Welcome.Page {
                     id: openUpdateBtn
                     text: i18n("Open Update Settings")
                     onClicked: Welcome.Controller.runCommand("systemsettings kcm_oneclick_update")
+                    scale: !root.animationsEnabled ? 1 : (down ? 0.98 : (hovered ? 1.02 : 1))
+                    Behavior on scale {
+                        enabled: root.animationsEnabled
+                        NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+                    }
                     background: Rectangle {
                         color: openUpdateBtn.hovered ? "#5eead4" : "#2dd4bf"
                         radius: 6
+                        Behavior on color {
+                            enabled: root.animationsEnabled
+                            ColorAnimation { duration: root.animFast }
+                        }
                     }
                     contentItem: QQC2.Label {
                         text: openUpdateBtn.text

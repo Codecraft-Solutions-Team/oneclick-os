@@ -15,6 +15,10 @@ import org.kde.plasmasetup.components as PlasmaSetupComponents
 PlasmaSetupComponents.SetupModule {
     id: root
 
+    readonly property bool animationsEnabled: Kirigami.Units.longDuration > 0
+    readonly property int animFast: animationsEnabled ? Math.max(40, Math.round(Kirigami.Units.shortDuration * 0.6)) : 0
+    readonly property int animLong: animationsEnabled ? Kirigami.Units.longDuration : 0
+
     function onPageActivated(): void {
         searchField.forceActiveFocus();
     }
@@ -45,6 +49,12 @@ PlasmaSetupComponents.SetupModule {
             border.color: "#22304d"
             border.width: 1
             radius: 10
+            opacity: root.animationsEnabled ? 0 : 1
+            Component.onCompleted: opacity = 1
+            Behavior on opacity {
+                enabled: root.animationsEnabled
+                NumberAnimation { duration: root.animLong; easing.type: Easing.OutCubic }
+            }
 
             ColumnLayout {
                 anchors.fill: parent
@@ -96,6 +106,10 @@ PlasmaSetupComponents.SetupModule {
                         border.color: searchField.activeFocus ? "#2dd4bf" : "#22304d"
                         border.width: 1
                         radius: 6
+                        Behavior on border.color {
+                            enabled: root.animationsEnabled
+                            ColorAnimation { duration: root.animFast }
+                        }
                     }
                     onTextChanged: {
                         Language.LanguageUtil.languageModel.setFilterString(text);
@@ -160,6 +174,10 @@ PlasmaSetupComponents.SetupModule {
                                 color: "#0a1020"
                                 border.color: langDelegate.checked ? "#2dd4bf" : "#22304d"
                                 border.width: 2
+                                Behavior on border.color {
+                                    enabled: root.animationsEnabled
+                                    ColorAnimation { duration: root.animFast }
+                                }
 
                                 Rectangle {
                                     width: 8
@@ -167,7 +185,16 @@ PlasmaSetupComponents.SetupModule {
                                     radius: 4
                                     anchors.centerIn: parent
                                     color: "#2dd4bf"
-                                    visible: langDelegate.checked
+                                    opacity: langDelegate.checked ? 1 : 0
+                                    scale: langDelegate.checked ? 1 : 0.4
+                                    Behavior on opacity {
+                                        enabled: root.animationsEnabled
+                                        NumberAnimation { duration: root.animFast }
+                                    }
+                                    Behavior on scale {
+                                        enabled: root.animationsEnabled
+                                        NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+                                    }
                                 }
                             }
 
@@ -175,6 +202,10 @@ PlasmaSetupComponents.SetupModule {
                                 color: langDelegate.checked
                                     ? "#0f2433"
                                     : (langDelegate.hovered ? "#131c34" : "transparent")
+                                Behavior on color {
+                                    enabled: root.animationsEnabled
+                                    ColorAnimation { duration: root.animFast }
+                                }
                             }
 
                             onToggled: {

@@ -20,6 +20,10 @@ import org.kde.plasma.private.kcm_keyboard as KCMKeyboard
 PlasmaSetupComponents.SetupModule {
     id: root
 
+    readonly property bool animationsEnabled: Kirigami.Units.longDuration > 0
+    readonly property int animFast: animationsEnabled ? Math.max(40, Math.round(Kirigami.Units.shortDuration * 0.6)) : 0
+    readonly property int animLong: animationsEnabled ? Kirigami.Units.longDuration : 0
+
     available: !Kirigami.Settings.isMobile
 
     function onPageActivated(): void {
@@ -160,6 +164,12 @@ PlasmaSetupComponents.SetupModule {
             border.color: "#22304d"
             border.width: 1
             radius: 10
+            opacity: root.animationsEnabled ? 0 : 1
+            Component.onCompleted: opacity = 1
+            Behavior on opacity {
+                enabled: root.animationsEnabled
+                NumberAnimation { duration: root.animLong; easing.type: Easing.OutCubic }
+            }
 
             ColumnLayout {
                 id: mainColumn
@@ -212,6 +222,10 @@ PlasmaSetupComponents.SetupModule {
                         border.color: searchField.activeFocus ? "#2dd4bf" : "#22304d"
                         border.width: 1
                         radius: 6
+                        Behavior on border.color {
+                            enabled: root.animationsEnabled
+                            ColorAnimation { duration: root.animFast }
+                        }
                     }
                     onAccepted: {
                         searchDebouncer.stop();
@@ -306,11 +320,19 @@ PlasmaSetupComponents.SetupModule {
             color: delegate.highlighted
                 ? "#0f2433"
                 : (delegate.hovered ? "#131c34" : "transparent")
+            Behavior on color {
+                enabled: root.animationsEnabled
+                ColorAnimation { duration: root.animFast }
+            }
         }
 
         contentItem: Label {
             text: delegate.description
             color: delegate.highlighted ? "#2dd4bf" : "#ffffff"
+            Behavior on color {
+                enabled: root.animationsEnabled
+                ColorAnimation { duration: root.animFast }
+            }
             font.weight: delegate.highlighted ? Font.DemiBold : Font.Normal
             elide: Text.ElideRight
             verticalAlignment: Text.AlignVCenter

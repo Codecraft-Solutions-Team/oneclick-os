@@ -17,6 +17,10 @@ import org.kde.plasmasetup.components as PlasmaSetupComponents
 PlasmaSetupComponents.SetupModule {
     id: root
 
+    readonly property bool animationsEnabled: Kirigami.Units.longDuration > 0
+    readonly property int animFast: animationsEnabled ? Math.max(40, Math.round(Kirigami.Units.shortDuration * 0.6)) : 0
+    readonly property int animLong: animationsEnabled ? Kirigami.Units.longDuration : 0
+
     cardWidth: Math.min(Kirigami.Units.gridUnit * 32, root.contentItem.width - Kirigami.Units.gridUnit * 2)
 
     available: !AccountController.hasExistingUsers
@@ -75,6 +79,7 @@ PlasmaSetupComponents.SetupModule {
                 Item { Layout.fillHeight: true }
 
                 Rectangle {
+                    id: card
                     Layout.alignment: Qt.AlignHCenter
                     Layout.fillWidth: true
                     Layout.maximumWidth: Kirigami.Units.gridUnit * 34
@@ -85,6 +90,12 @@ PlasmaSetupComponents.SetupModule {
                     border.color: "#22304d"
                     border.width: 1
                     radius: 10
+                    opacity: root.animationsEnabled ? 0 : 1
+                    Component.onCompleted: opacity = 1
+                    Behavior on opacity {
+                        enabled: root.animationsEnabled
+                        NumberAnimation { duration: root.animLong; easing.type: Easing.OutCubic }
+                    }
 
                     ColumnLayout {
                         id: cardCol
@@ -171,6 +182,10 @@ PlasmaSetupComponents.SetupModule {
                                     border.color: fullNameField.activeFocus ? "#2dd4bf" : "#22304d"
                                     border.width: 1
                                     radius: 6
+                                    Behavior on border.color {
+                                        enabled: root.animationsEnabled
+                                        ColorAnimation { duration: root.animFast }
+                                    }
                                 }
                                 onActiveFocusChanged: {
                                     if (activeFocus) {
@@ -201,6 +216,10 @@ PlasmaSetupComponents.SetupModule {
                                     border.color: usernameField.activeFocus ? "#2dd4bf" : "#22304d"
                                     border.width: 1
                                     radius: 6
+                                    Behavior on border.color {
+                                        enabled: root.animationsEnabled
+                                        ColorAnimation { duration: root.animFast }
+                                    }
                                 }
                                 onActiveFocusChanged: {
                                     if (activeFocus) {
@@ -231,6 +250,10 @@ PlasmaSetupComponents.SetupModule {
                                     border.color: passwordField.activeFocus ? "#2dd4bf" : "#22304d"
                                     border.width: 1
                                     radius: 6
+                                    Behavior on border.color {
+                                        enabled: root.animationsEnabled
+                                        ColorAnimation { duration: root.animFast }
+                                    }
                                 }
                                 onActiveFocusChanged: {
                                     if (activeFocus) {
@@ -255,6 +278,10 @@ PlasmaSetupComponents.SetupModule {
                                     border.color: repeatField.activeFocus ? "#2dd4bf" : "#22304d"
                                     border.width: 1
                                     radius: 6
+                                    Behavior on border.color {
+                                        enabled: root.animationsEnabled
+                                        ColorAnimation { duration: root.animFast }
+                                    }
                                 }
                                 onActiveFocusChanged: {
                                     if (activeFocus) {

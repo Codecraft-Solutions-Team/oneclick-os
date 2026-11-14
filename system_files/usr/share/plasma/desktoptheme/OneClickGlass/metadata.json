@@ -1,0 +1,18 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "OneClick OS"
+            }
+        ],
+        "Category": "",
+        "Description": "Translucent dark glass theme with blurred panels and popups for OneClick OS",
+        "EnabledByDefault": true,
+        "Id": "OneClickGlass",
+        "License": "Apache-2.0",
+        "Name": "OneClick Glass",
+        "Version": "0.1",
+        "Website": "https://github.com/Codecraft-Solutions-Team/oneclick-os"
+    },
+    "X-Plasma-API": "5.0"
+}

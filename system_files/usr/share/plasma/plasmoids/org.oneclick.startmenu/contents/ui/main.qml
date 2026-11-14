@@ -9,6 +9,7 @@ import org.kde.plasma.components as PC3
 import org.kde.plasma.plasma5support as P5Support
 import org.kde.plasma.private.kicker as Kicker
 import org.kde.kirigami as Kirigami
+import org.kde.ksvg as KSvg
 
 PlasmoidItem {
     id: root
@@ -26,8 +27,13 @@ PlasmoidItem {
     readonly property color textPrimary: "#ffffff"
     readonly property color textMuted: "#94a3b8"
     readonly property bool animationsEnabled: Kirigami.Units.longDuration > 0
+    readonly property int animFast: animationsEnabled ? Math.max(40, Math.round(Kirigami.Units.shortDuration * 0.6)) : 0
+    readonly property int animShort: animationsEnabled ? Kirigami.Units.shortDuration : 0
+    readonly property int animLong: animationsEnabled ? Kirigami.Units.longDuration : 0
+    readonly property bool glassMode: KSvg.ImageSet.imageSetName === "OneClickGlass"
 
     preferredRepresentation: compactRepresentation
+    Plasmoid.backgroundHints: glassMode ? PlasmaCore.Types.DefaultBackground : PlasmaCore.Types.StandardBackground
     switchWidth: 0
     switchHeight: 0
 
@@ -203,7 +209,7 @@ PlasmoidItem {
             "    var widgets = allPanels[i].widgets();\n" +
             "    for (var j = 0; j < widgets.length; j++) {\n" +
             "        var w = widgets[j];\n" +
-            "        if (w.type === \"org.kde.plasma.icontasks\" || w.type === \"org.kde.plasma.taskmanager\") {\n" +
+            "        if (w.type === \"org.kde.plasma.icontasks\" || w.type === \"org.kde.plasma.taskmanager\" || w.type === \"org.oneclick.dock\") {\n" +
             "            w.currentConfigGroup = [\"General\"];\n" +
             "            var raw = w.readConfig(\"launchers\", []);\n" +
             "            var list = [];\n" +
@@ -230,22 +236,28 @@ PlasmoidItem {
         id: button
         hoverEnabled: true
         onClicked: root.expanded = !root.expanded
-        Layout.minimumWidth: height * 1.25
+        Layout.minimumWidth: Math.max(height * 1.25, 32)
         Rectangle {
             anchors.fill: parent
             anchors.margins: 3
             radius: 6
             color: root.textPrimary
             opacity: root.expanded ? 0.14 : (button.containsMouse ? 0.08 : 0)
-            Behavior on opacity { NumberAnimation { duration: root.animationsEnabled ? 120 : 0 } }
+            Behavior on opacity {
+                enabled: root.animationsEnabled
+                NumberAnimation { duration: root.animShort }
+            }
         }
         Kirigami.Icon {
             anchors.centerIn: parent
             width: Math.min(parent.width, parent.height) * 0.62
             height: width
             source: "start-here"
-            scale: button.pressed ? 0.88 : 1
-            Behavior on scale { NumberAnimation { duration: root.animationsEnabled ? 90 : 0 } }
+            scale: !root.animationsEnabled ? 1 : (button.pressed ? 0.92 : (button.containsMouse ? 1.04 : 1))
+            Behavior on scale {
+                enabled: root.animationsEnabled
+                NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+            }
         }
     }
 
@@ -259,7 +271,9 @@ PlasmoidItem {
 
         function playOpenAnimation() {
             if (root.animationsEnabled) {
-                menuContainer.y = 16
+                var slideStart = Plasmoid.location === PlasmaCore.Types.TopEdge ? -12 : 16
+                openAnimY.from = slideStart
+                menuContainer.y = slideStart
                 menuContainer.opacity = 0
                 openAnim.restart()
             } else {
@@ -319,11 +333,12 @@ PlasmoidItem {
         ParallelAnimation {
             id: openAnim
             NumberAnimation {
+                id: openAnimY
                 target: menuContainer
                 property: "y"
                 from: 16
                 to: 0
-                duration: 180
+                duration: root.animLong
                 easing.type: Easing.OutCubic
             }
             NumberAnimation {
@@ -331,7 +346,7 @@ PlasmoidItem {
                 property: "opacity"
                 from: 0
                 to: 1
-                duration: 180
+                duration: root.animLong
                 easing.type: Easing.OutCubic
             }
         }
@@ -342,10 +357,10 @@ PlasmoidItem {
             height: fullRoot.height
             y: 0
             opacity: 1
-            radius: 10
-            color: root.bgPanel
+            radius: root.glassMode ? 8 : 10
+            color: root.glassMode ? Qt.rgba(11/255, 18/255, 36/255, 0.20) : root.bgPanel
             border.color: root.lineColor
-            border.width: 1
+            border.width: root.glassMode ? 0 : 1
             clip: true
 
             ColumnLayout {
@@ -375,9 +390,13 @@ PlasmoidItem {
 
                         background: Rectangle {
                             radius: height / 2
-                            color: root.bgNavy
+                            color: root.glassMode ? Qt.rgba(10/255, 16/255, 32/255, 0.65) : root.bgNavy
                             border.width: search.activeFocus ? 2 : 1
                             border.color: search.activeFocus ? root.accent : root.lineColor
+                            Behavior on border.color {
+                                enabled: root.animationsEnabled
+                                ColorAnimation { duration: root.animFast }
+                            }
                         }
 
                         Kirigami.Icon {
@@ -385,6 +404,10 @@ PlasmoidItem {
                             width: Kirigami.Units.iconSizes.small
                             height: width
                             color: search.activeFocus ? root.accent : root.textMuted
+                            Behavior on color {
+                                enabled: root.animationsEnabled
+                                ColorAnimation { duration: root.animFast }
+                            }
                             anchors.left: parent.left
                             anchors.leftMargin: Kirigami.Units.gridUnit * 0.7
                             anchors.verticalCenter: parent.verticalCenter
@@ -425,6 +448,11 @@ PlasmoidItem {
                             id: toggleAllBtn
                             text: root.showAll ? "Back" : "All apps"
                             icon.name: root.showAll ? "go-previous" : "go-next"
+                            scale: !root.animationsEnabled ? 1 : (down ? 0.98 : (hovered ? 1.02 : 1))
+                            Behavior on scale {
+                                enabled: root.animationsEnabled
+                                NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+                            }
                             onClicked: root.showAll = !root.showAll
                             contentItem: RowLayout {
                                 spacing: 6
@@ -451,85 +479,134 @@ PlasmoidItem {
                             background: Rectangle {
                                 radius: 6
                                 color: toggleAllBtn.down ? Qt.rgba(1, 1, 1, 0.14)
-                                     : (toggleAllBtn.hovered ? Qt.rgba(1, 1, 1, 0.08) : root.bgNavy)
-                                border.color: root.lineColor
+                                     : (toggleAllBtn.hovered ? Qt.rgba(1, 1, 1, 0.08)
+                                     : (root.glassMode ? Qt.rgba(10/255, 16/255, 32/255, 0.55) : root.bgNavy))
+                                border.color: toggleAllBtn.hovered ? root.accent : root.lineColor
                                 border.width: 1
+                                Behavior on color {
+                                    enabled: root.animationsEnabled
+                                    ColorAnimation { duration: root.animFast }
+                                }
+                                Behavior on border.color {
+                                    enabled: root.animationsEnabled
+                                    ColorAnimation { duration: root.animFast }
+                                }
                             }
                         }
                     }
 
-                    // Pinned grid
-                    GridView {
-                        id: pinned
-                        visible: root.query.length === 0 && !root.showAll
+                    Item {
+                        id: viewStack
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        clip: true
-                        cellWidth: width / 6
-                        cellHeight: Kirigami.Units.gridUnit * 5.4
-                        model: appsRoot.favoritesModel
-                        delegate: Tile {
-                            id: pinnedTile
-                            width: pinned.cellWidth
-                            height: pinned.cellHeight
-                            onActivated: root.launch(appsRoot.favoritesModel, index)
-                            onContextRequested: (mx, my) => fullRoot.openContextMenu(pinnedTile, mx, my, model.favoriteId, model.url)
-                        }
-                    }
+                        readonly property int activeView: root.query.length > 0 ? 2 : (root.showAll ? 1 : 0)
 
-                    // All apps, A to Z
-                    ListView {
-                        id: allApps
-                        visible: root.query.length === 0 && root.showAll
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        clip: true
-                        model: (appsRoot.count > 0 && root.appsRevision >= 0) ? root.findAllAppsModel() : null
-                        delegate: Row_ {
-                            id: allAppRow
-                            width: allApps.width
-                            onActivated: root.launch(allApps.model, index)
-                            onContextRequested: (mx, my) => fullRoot.openContextMenu(allAppRow, mx, my, model.favoriteId, model.url)
-                        }
-                        QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
-                    }
-
-                    // Search results
-                    ListView {
-                        id: results
-                        visible: root.query.length > 0
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        clip: true
-                        model: (runner.count > 0 && root.runnerRevision >= 0) ? root.findRunnerResultsModel() : null
-                        onModelChanged: currentIndex = count > 0 ? 0 : -1
-                        onCountChanged: {
-                            if (count > 0 && (currentIndex < 0 || currentIndex >= count)) {
-                                currentIndex = 0
+                        // Pinned grid
+                        GridView {
+                            id: pinned
+                            anchors.fill: parent
+                            readonly property bool active: viewStack.activeView === 0
+                            opacity: active ? 1.0 : 0.0
+                            y: active ? 0 : (root.animationsEnabled ? -8 : 0)
+                            enabled: active
+                            visible: opacity > 0.01
+                            Behavior on opacity {
+                                enabled: root.animationsEnabled
+                                NumberAnimation { duration: root.animShort; easing.type: Easing.OutCubic }
+                            }
+                            Behavior on y {
+                                enabled: root.animationsEnabled
+                                NumberAnimation { duration: root.animShort; easing.type: Easing.OutCubic }
+                            }
+                            clip: true
+                            cellWidth: width / 6
+                            cellHeight: Kirigami.Units.gridUnit * 5.4
+                            model: appsRoot.favoritesModel
+                            delegate: Tile {
+                                id: pinnedTile
+                                width: pinned.cellWidth
+                                height: pinned.cellHeight
+                                onActivated: root.launch(appsRoot.favoritesModel, index)
+                                onContextRequested: (mx, my) => fullRoot.openContextMenu(pinnedTile, mx, my, model.favoriteId, model.url)
                             }
                         }
-                        delegate: Row_ {
-                            id: resultRow
-                            width: results.width
-                            highlighted: ListView.isCurrentItem || (results.currentIndex < 0 && index === 0)
-                            onActivated: root.launch(results.model, index)
-                            onContextRequested: (mx, my) => fullRoot.openContextMenu(resultRow, mx, my, model.favoriteId, model.url)
-                        }
-                        Keys.onReturnPressed: root.launch(results.model, currentIndex >= 0 ? currentIndex : 0)
-                        Keys.onEnterPressed: root.launch(results.model, currentIndex >= 0 ? currentIndex : 0)
-                        Keys.onUpPressed: {
-                            if (currentIndex <= 0) {
-                                search.forceActiveFocus()
-                            } else {
-                                decrementCurrentIndex()
+
+                        // All apps, A to Z
+                        ListView {
+                            id: allApps
+                            anchors.fill: parent
+                            readonly property bool active: viewStack.activeView === 1
+                            opacity: active ? 1.0 : 0.0
+                            y: active ? 0 : (root.animationsEnabled ? 8 : 0)
+                            enabled: active
+                            visible: opacity > 0.01
+                            Behavior on opacity {
+                                enabled: root.animationsEnabled
+                                NumberAnimation { duration: root.animShort; easing.type: Easing.OutCubic }
                             }
+                            Behavior on y {
+                                enabled: root.animationsEnabled
+                                NumberAnimation { duration: root.animShort; easing.type: Easing.OutCubic }
+                            }
+                            clip: true
+                            model: (appsRoot.count > 0 && root.appsRevision >= 0) ? root.findAllAppsModel() : null
+                            delegate: Row_ {
+                                id: allAppRow
+                                width: allApps.width
+                                onActivated: root.launch(allApps.model, index)
+                                onContextRequested: (mx, my) => fullRoot.openContextMenu(allAppRow, mx, my, model.favoriteId, model.url)
+                            }
+                            QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
                         }
-                        QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
-                        PC3.Label {
-                            anchors.centerIn: parent
-                            visible: root.query.length > 0 && !runner.querying && results.count === 0
-                            text: "Nothing found for \u201C" + root.query + "\u201D"
-                            color: root.textMuted
+
+                        // Search results
+                        ListView {
+                            id: results
+                            anchors.fill: parent
+                            readonly property bool active: viewStack.activeView === 2
+                            opacity: active ? 1.0 : 0.0
+                            y: active ? 0 : (root.animationsEnabled ? 8 : 0)
+                            enabled: active
+                            visible: opacity > 0.01
+                            Behavior on opacity {
+                                enabled: root.animationsEnabled
+                                NumberAnimation { duration: root.animShort; easing.type: Easing.OutCubic }
+                            }
+                            Behavior on y {
+                                enabled: root.animationsEnabled
+                                NumberAnimation { duration: root.animShort; easing.type: Easing.OutCubic }
+                            }
+                            clip: true
+                            model: (runner.count > 0 && root.runnerRevision >= 0) ? root.findRunnerResultsModel() : null
+                            onModelChanged: currentIndex = count > 0 ? 0 : -1
+                            onCountChanged: {
+                                if (count > 0 && (currentIndex < 0 || currentIndex >= count)) {
+                                    currentIndex = 0
+                                }
+                            }
+                            delegate: Row_ {
+                                id: resultRow
+                                width: results.width
+                                highlighted: ListView.isCurrentItem || (results.currentIndex < 0 && index === 0)
+                                onActivated: root.launch(results.model, index)
+                                onContextRequested: (mx, my) => fullRoot.openContextMenu(resultRow, mx, my, model.favoriteId, model.url)
+                            }
+                            Keys.onReturnPressed: root.launch(results.model, currentIndex >= 0 ? currentIndex : 0)
+                            Keys.onEnterPressed: root.launch(results.model, currentIndex >= 0 ? currentIndex : 0)
+                            Keys.onUpPressed: {
+                                if (currentIndex <= 0) {
+                                    search.forceActiveFocus()
+                                } else {
+                                    decrementCurrentIndex()
+                                }
+                            }
+                            QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
+                            PC3.Label {
+                                anchors.centerIn: parent
+                                visible: root.query.length > 0 && !runner.querying && results.count === 0
+                                text: "Nothing found for \u201C" + root.query + "\u201D"
+                                color: root.textMuted
+                            }
                         }
                     }
                 }
@@ -545,7 +622,7 @@ PlasmoidItem {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: Kirigami.Units.gridUnit * 3.2
-                    color: root.bgNavy
+                    color: root.glassMode ? Qt.rgba(10/255, 16/255, 32/255, 0.45) : root.bgNavy
                     RowLayout {
                         anchors.fill: parent
                         anchors.leftMargin: Kirigami.Units.gridUnit * 1.25
@@ -646,6 +723,10 @@ PlasmoidItem {
             color: !menuAction.enabled ? "transparent"
                  : (menuAction.down ? Qt.rgba(1, 1, 1, 0.14)
                  : (menuAction.highlighted ? Qt.rgba(45/255, 212/255, 191/255, 0.16) : "transparent"))
+            Behavior on color {
+                enabled: root.animationsEnabled
+                ColorAnimation { duration: root.animFast }
+            }
         }
     }
 
@@ -696,14 +777,18 @@ PlasmoidItem {
 
         SequentialAnimation {
             id: tileEnterAnim
-            PauseAnimation { duration: Math.max(0, Math.min(index, 15)) * 14 }
+            PauseAnimation {
+                duration: root.animationsEnabled
+                    ? Math.max(0, Math.min(index, 15)) * Math.max(4, Math.round(root.animFast * 0.16))
+                    : 0
+            }
             ParallelAnimation {
                 NumberAnimation {
                     target: tile
                     property: "enterOffset"
                     from: 10
                     to: 0
-                    duration: 160
+                    duration: root.animLong
                     easing.type: Easing.OutCubic
                 }
                 NumberAnimation {
@@ -711,7 +796,7 @@ PlasmoidItem {
                     property: "opacity"
                     from: 0
                     to: 1
-                    duration: 160
+                    duration: root.animLong
                     easing.type: Easing.OutCubic
                 }
             }
@@ -721,6 +806,11 @@ PlasmoidItem {
             id: tileContent
             anchors.fill: parent
             transform: Translate { y: tile.enterOffset }
+            scale: !root.animationsEnabled ? 1 : (tile.pressed ? 0.98 : (tile.containsMouse ? 1.02 : 1))
+            Behavior on scale {
+                enabled: root.animationsEnabled
+                NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+            }
 
             Rectangle {
                 anchors.fill: parent
@@ -728,7 +818,10 @@ PlasmoidItem {
                 radius: 8
                 color: root.textPrimary
                 opacity: tile.pressed ? 0.12 : (tile.containsMouse ? 0.07 : 0)
-                Behavior on opacity { NumberAnimation { duration: root.animationsEnabled ? 100 : 0 } }
+                Behavior on opacity {
+                    enabled: root.animationsEnabled
+                    NumberAnimation { duration: root.animFast }
+                }
             }
 
             ColumnLayout {
@@ -740,8 +833,11 @@ PlasmoidItem {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.preferredWidth: Kirigami.Units.iconSizes.large
                     Layout.preferredHeight: Layout.preferredWidth
-                    scale: tile.pressed ? 0.9 : 1
-                    Behavior on scale { NumberAnimation { duration: root.animationsEnabled ? 90 : 0 } }
+                    scale: !root.animationsEnabled ? 1 : (tile.pressed ? 0.92 : 1)
+                    Behavior on scale {
+                        enabled: root.animationsEnabled
+                        NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+                    }
                 }
                 PC3.Label {
                     text: model.display
@@ -763,6 +859,12 @@ PlasmoidItem {
         height: Kirigami.Units.gridUnit * 2.4
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: true
+        opacity: root.animationsEnabled ? 0 : 1
+        Component.onCompleted: opacity = 1
+        Behavior on opacity {
+            enabled: root.animationsEnabled
+            NumberAnimation { duration: root.animShort; easing.type: Easing.OutCubic }
+        }
 
         onClicked: (mouse) => {
             if (mouse.button === Qt.RightButton) {
@@ -777,13 +879,25 @@ PlasmoidItem {
             radius: 6
             color: row.highlighted && !row.containsMouse ? root.accent : root.textPrimary
             opacity: row.pressed ? 0.14 : (row.containsMouse ? 0.08 : (row.highlighted ? 0.14 : 0))
-            Behavior on opacity { NumberAnimation { duration: root.animationsEnabled ? 90 : 0 } }
+            Behavior on opacity {
+                enabled: root.animationsEnabled
+                NumberAnimation { duration: root.animFast }
+            }
+            Behavior on color {
+                enabled: root.animationsEnabled
+                ColorAnimation { duration: root.animFast }
+            }
         }
         RowLayout {
             anchors.fill: parent
             anchors.leftMargin: Kirigami.Units.gridUnit * 0.6
             anchors.rightMargin: Kirigami.Units.gridUnit * 0.6
             spacing: Kirigami.Units.gridUnit * 0.6
+            scale: !root.animationsEnabled ? 1 : (row.pressed ? 0.98 : 1)
+            Behavior on scale {
+                enabled: root.animationsEnabled
+                NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+            }
             Kirigami.Icon {
                 source: model.decoration
                 Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
@@ -808,10 +922,19 @@ PlasmoidItem {
         display: QQC2.AbstractButton.IconOnly
         PC3.ToolTip.text: tip
         PC3.ToolTip.visible: hovered
+        scale: !root.animationsEnabled ? 1 : (down ? 0.94 : (hovered ? 1.04 : 1))
+        Behavior on scale {
+            enabled: root.animationsEnabled
+            NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+        }
         background: Rectangle {
             radius: 6
             color: root.textPrimary
             opacity: pbtn.down ? 0.14 : (pbtn.hovered ? 0.08 : 0)
+            Behavior on opacity {
+                enabled: root.animationsEnabled
+                NumberAnimation { duration: root.animFast }
+            }
         }
         onClicked: {
             root.expanded = false

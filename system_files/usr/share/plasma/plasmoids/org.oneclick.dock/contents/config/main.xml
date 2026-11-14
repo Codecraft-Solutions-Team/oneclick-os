@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0">
+  <kcfgfile name=""/>
+  <group name="General">
+    <entry name="launchers" type="StringList">
+      <default>preferred://browser,preferred://filemanager,applications:org.kde.discover.desktop,applications:systemsettings.desktop,applications:oneclick-update.desktop</default>
+    </entry>
+  </group>
+</kcfg>

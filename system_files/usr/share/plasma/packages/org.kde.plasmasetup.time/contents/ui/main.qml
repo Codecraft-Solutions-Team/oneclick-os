@@ -15,6 +15,9 @@ import org.kde.plasmasetup.components as PlasmaSetupComponents
 PlasmaSetupComponents.SetupModule {
     id: root
 
+    readonly property bool animationsEnabled: Kirigami.Units.longDuration > 0
+    readonly property int animLong: animationsEnabled ? Kirigami.Units.longDuration : 0
+
     contentItem: Rectangle {
         id: backdrop
         color: "#0a1020"
@@ -41,6 +44,12 @@ PlasmaSetupComponents.SetupModule {
             border.color: "#22304d"
             border.width: 1
             radius: 10
+            opacity: root.animationsEnabled ? 0 : 1
+            Component.onCompleted: opacity = 1
+            Behavior on opacity {
+                enabled: root.animationsEnabled
+                NumberAnimation { duration: root.animLong; easing.type: Easing.OutCubic }
+            }
 
             ColumnLayout {
                 id: mainColumn

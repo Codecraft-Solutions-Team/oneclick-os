@@ -14,6 +14,10 @@ import org.kde.plasmasetup.components as PlasmaSetupComponents
 PlasmaSetupComponents.SetupModule {
     id: root
 
+    readonly property bool animationsEnabled: Kirigami.Units.longDuration > 0
+    readonly property int animFast: animationsEnabled ? Math.max(40, Math.round(Kirigami.Units.shortDuration * 0.6)) : 0
+    readonly property int animLong: animationsEnabled ? Kirigami.Units.longDuration : 0
+
     cardWidth: Math.min(Kirigami.Units.gridUnit * 32, root.contentItem.width - Kirigami.Units.gridUnit * 2)
     nextEnabled: true
 
@@ -44,6 +48,12 @@ PlasmaSetupComponents.SetupModule {
             border.color: "#22304d"
             border.width: 1
             radius: 10
+            opacity: root.animationsEnabled ? 0 : 1
+            Component.onCompleted: opacity = 1
+            Behavior on opacity {
+                enabled: root.animationsEnabled
+                NumberAnimation { duration: root.animLong; easing.type: Easing.OutCubic }
+            }
 
             ColumnLayout {
                 id: innerCol
@@ -137,6 +147,14 @@ PlasmaSetupComponents.SetupModule {
                                 color: darkThemeSwitch.checked ? "#2dd4bf" : "#0b1224"
                                 border.color: darkThemeSwitch.checked ? "#2dd4bf" : "#22304d"
                                 border.width: 1
+                                Behavior on color {
+                                    enabled: root.animationsEnabled
+                                    ColorAnimation { duration: root.animFast }
+                                }
+                                Behavior on border.color {
+                                    enabled: root.animationsEnabled
+                                    ColorAnimation { duration: root.animFast }
+                                }
 
                                 Rectangle {
                                     x: darkThemeSwitch.checked ? parent.width - width - 3 : 3
@@ -145,6 +163,14 @@ PlasmaSetupComponents.SetupModule {
                                     height: 18
                                     radius: 9
                                     color: darkThemeSwitch.checked ? "#042f2e" : "#94a3b8"
+                                    Behavior on x {
+                                        enabled: root.animationsEnabled
+                                        NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
+                                    }
+                                    Behavior on color {
+                                        enabled: root.animationsEnabled
+                                        ColorAnimation { duration: root.animFast }
+                                    }
                                 }
                             }
                         }

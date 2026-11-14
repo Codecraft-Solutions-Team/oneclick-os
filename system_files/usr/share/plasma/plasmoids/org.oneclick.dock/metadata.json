@@ -1,0 +1,15 @@
+{
+    "KPlugin": {
+        "Id": "org.oneclick.dock",
+        "Name": "OneClick Dock",
+        "Description": "Centered floating magnifying dock for pinned and running apps",
+        "Icon": "preferences-desktop",
+        "Authors": [ { "Name": "OneClick OS" } ],
+        "Category": "Windows and Tasks",
+        "License": "Apache-2.0",
+        "Version": "0.1"
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-Provides": [ "org.kde.plasma.taskmanager" ]
+}

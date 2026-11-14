@@ -16,6 +16,10 @@ import org.kde.plasmasetup.hostnameutil
 PlasmaSetupComponents.SetupModule {
     id: root
 
+    readonly property bool animationsEnabled: Kirigami.Units.longDuration > 0
+    readonly property int animFast: animationsEnabled ? Math.max(40, Math.round(Kirigami.Units.shortDuration * 0.6)) : 0
+    readonly property int animLong: animationsEnabled ? Kirigami.Units.longDuration : 0
+
     available: HostnameUtil.hostnameIsDefault()
 
     property bool hasEdited: false
@@ -77,6 +81,12 @@ PlasmaSetupComponents.SetupModule {
                     border.color: "#22304d"
                     border.width: 1
                     radius: 10
+                    opacity: root.animationsEnabled ? 0 : 1
+                    Component.onCompleted: opacity = 1
+                    Behavior on opacity {
+                        enabled: root.animationsEnabled
+                        NumberAnimation { duration: root.animLong; easing.type: Easing.OutCubic }
+                    }
 
                     ColumnLayout {
                         id: mainColumn
@@ -136,6 +146,10 @@ PlasmaSetupComponents.SetupModule {
                                     border.color: hostnameField.activeFocus ? "#2dd4bf" : "#22304d"
                                     border.width: 1
                                     radius: 6
+                                    Behavior on border.color {
+                                        enabled: root.animationsEnabled
+                                        ColorAnimation { duration: root.animFast }
+                                    }
                                 }
 
                                 onTextChanged: {

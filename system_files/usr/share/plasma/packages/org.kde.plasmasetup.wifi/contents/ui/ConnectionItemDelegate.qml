@@ -15,10 +15,17 @@ Controls.ItemDelegate {
     leftPadding: 12
     rightPadding: 12
 
+    readonly property bool animationsEnabled: Kirigami.Units.longDuration > 0
+    readonly property int animFast: animationsEnabled ? Math.max(40, Math.round(Kirigami.Units.shortDuration * 0.6)) : 0
+
     background: Rectangle {
         color: ConnectionState === PlasmaNM.Enums.Activated
             ? "#0f2433"
             : (root.hovered ? "#131c34" : "transparent")
+        Behavior on color {
+            enabled: root.animationsEnabled
+            ColorAnimation { duration: root.animFast }
+        }
     }
 
     contentItem: RowLayout {
