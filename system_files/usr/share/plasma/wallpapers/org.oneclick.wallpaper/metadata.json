@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/Wallpaper",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "OneClick OS"
+            }
+        ],
+        "Category": "",
+        "Description": "OneClick OS login and lock screen wallpaper",
+        "Icon": "preferences-desktop-wallpaper",
+        "Id": "org.oneclick.wallpaper",
+        "License": "Apache-2.0",
+        "Name": "OneClick Wallpaper",
+        "Version": "0.1"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

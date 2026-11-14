@@ -5,7 +5,9 @@ panel.location = "bottom"
 panel.height = Math.round(gridUnit * 2.6)
 panel.floating = false
 
-panel.addWidget("org.kde.plasma.kickoff")
+var start = panel.addWidget("org.oneclick.startmenu")
+start.currentConfigGroup = ["Shortcuts"]
+start.writeConfig("global", "Alt+F1")
 
 var tasks = panel.addWidget("org.kde.plasma.icontasks")
 tasks.currentConfigGroup = ["General"]

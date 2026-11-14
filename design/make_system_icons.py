@@ -74,6 +74,10 @@ SETTINGS = {
               ["ktip", "help-about", "preferences-desktop-feedback"]),
     "trash": ("#6b7280", f'<path d="M15 20h34M26 20v-5h12v5M19 20l2 28a3 3 0 0 0 3 3h16a3 3 0 0 0 3-3l2-28M28 28v15M36 28v15" {W}/>',
               ["user-trash", "user-trash-full", "trash-empty"]),
+    "taskbar": ("#0f766e", f'<rect x="12" y="15" width="40" height="34" rx="4" {W}/><rect x="16" y="38" width="32" height="7" rx="2" {F}/>',
+                ["oneclick-taskbar"]),
+    "windowsapps": ("#2563eb", f'<rect x="15" y="15" width="14" height="14" rx="2" {F}/><rect x="35" y="15" width="14" height="14" rx="2" {F}/><rect x="15" y="35" width="14" height="14" rx="2" {F}/><rect x="35" y="35" width="14" height="14" rx="2" {F}/>',
+                    ["oneclick-windows-apps"]),
 }
 
 # --- Tray icons: 22px grid, drawn in the taskbar's text colour ---------------------------
