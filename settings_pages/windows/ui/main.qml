@@ -20,6 +20,11 @@ KCM.SimpleKCM {
         }
     }
 
+    component MotionButton: QQC2.Button {
+        scale: down && Kirigami.Units.longDuration > 0 ? 0.98 : 1.0
+        Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
+    }
+
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
 
@@ -32,7 +37,17 @@ KCM.SimpleKCM {
 
         // ---- .exe / .msi double-click handling ----------------------------
         Kirigami.AbstractCard {
+            id: exeCard
+            property bool shown: Kirigami.Units.longDuration === 0
             Layout.fillWidth: true
+            opacity: shown ? 1.0 : 0.0
+            transform: Translate {
+                y: exeCard.shown ? 0 : 8
+                Behavior on y { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            }
+            Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            Component.onCompleted: shown = true
+
             contentItem: RowLayout {
                 spacing: Kirigami.Units.largeSpacing
 
@@ -71,7 +86,20 @@ KCM.SimpleKCM {
 
         // ---- Bottles ------------------------------------------------------
         Kirigami.AbstractCard {
+            id: bottlesCard
+            property bool shown: Kirigami.Units.longDuration === 0
             Layout.fillWidth: true
+            opacity: shown ? 1.0 : 0.0
+            transform: Translate {
+                y: bottlesCard.shown ? 0 : 8
+                Behavior on y { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            }
+            Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            Timer {
+                running: !bottlesCard.shown
+                interval: 50
+                onTriggered: bottlesCard.shown = true
+            }
             contentItem: ColumnLayout {
                 spacing: Kirigami.Units.largeSpacing
 
@@ -109,19 +137,19 @@ KCM.SimpleKCM {
                     Layout.alignment: Qt.AlignRight
                     spacing: Kirigami.Units.smallSpacing
 
-                    QQC2.Button {
+                    MotionButton {
                         text: "Check again"
                         icon.name: "view-refresh"
                         onClicked: kcm.refresh()
                     }
-                    QQC2.Button {
+                    MotionButton {
                         visible: !kcm.bottlesInstalled
                         text: "Install Bottles from App Store"
                         icon.name: "system-software-install"
                         highlighted: true
                         onClicked: kcm.installBottles()
                     }
-                    QQC2.Button {
+                    MotionButton {
                         visible: kcm.bottlesInstalled
                         text: "Open Bottles"
                         icon.name: "oneclick-windows-apps"

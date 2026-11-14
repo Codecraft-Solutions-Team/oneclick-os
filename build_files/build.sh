@@ -23,7 +23,7 @@ rm -f /usr/share/plasma/plasma-welcome/extra-pages/01-EnableExtraRepos.qml
 
 ### System files (handlers, default app associations, icons, boot settings)
 cp -avf /ctx/system_files/. /
-chmod 755 /usr/bin/oneclick-open-windows-app /usr/bin/oneclick-update /usr/bin/oneclick-install-chosen-apps /usr/libexec/oneclick-update-helper
+chmod 755 /usr/bin/oneclick-open-windows-app /usr/bin/oneclick-update /usr/bin/oneclick-install-chosen-apps /usr/bin/oneclick-apply-look /usr/libexec/oneclick-update-helper
 
 ### Branding
 # Only the display name and links change. ID and ID_LIKE stay as the base image set
@@ -36,6 +36,7 @@ sed -i \
     -e "s|^DOCUMENTATION_URL=.*|DOCUMENTATION_URL=\"${BRAND_URL}\"|" \
     -e "s|^SUPPORT_URL=.*|SUPPORT_URL=\"${BRAND_URL}/issues\"|" \
     -e "s|^BUG_REPORT_URL=.*|BUG_REPORT_URL=\"${BRAND_URL}/issues\"|" \
+    -e "s|^LOGO=.*|LOGO=\"oneclick-logo\"|" \
     /usr/lib/os-release
 echo "${IMAGE_NAME}" > /usr/share/oneclick-variant
 mkdir -p /usr/share/oneclick
@@ -48,11 +49,17 @@ install -Dm644 /usr/share/icons/OneClick/scalable/places/start-here.svg /usr/sha
 
 ### About This PC
 VERSION_VAL="$(cat /usr/share/oneclick/version)"
+ABOUT_VARIANT="Desktop"
+if [[ "${IMAGE_NAME}" == "oneclick-os-preview" ]]; then
+    ABOUT_VARIANT="Preview"
+fi
 setcfg kcm-about-distrorc General LogoPath "/usr/share/pixmaps/oneclick-logo.svg"
+setcfg kcm-about-distrorc General Name "${BRAND_NAME}"
 setcfg kcm-about-distrorc General Website "${BRAND_URL}"
 setcfg kcm-about-distrorc General Version "${VERSION_VAL}"
+setcfg kcm-about-distrorc General Variant "${ABOUT_VARIANT}"
 setcfg kcm-about-distrorc General UseOSReleaseVersion "false"
-setcfg kcm-about-distrorc General ShowSoftwareSection "false"
+setcfg kcm-about-distrorc General ShowBuild "false"
 if [[ -d "${FEDORA_XDG}" ]]; then
     cp -f /etc/xdg/kcm-about-distrorc "${FEDORA_XDG}/kcm-about-distrorc"
 fi
@@ -137,15 +144,36 @@ gtk-update-icon-cache -f /usr/share/icons/OneClick || true
 setcfg kdeglobals Icons Theme OneClick
 
 ### Animations
-# Lively window effects on by default. Each is a normal switch in Settings, so anyone can turn it off.
-setcfg kwinrc Plugins wobblywindowsEnabled true
-setcfg kwinrc Plugins magiclampEnabled true
-setcfg kwinrc Plugins squashEnabled false
+# Tasteful Windows-style defaults: crisp scale-and-fade open/close, squash minimise to taskbar,
+# smooth maximise snap, launch feedback bounce, and bottom-right notification slide-in.
+# Respects AnimationDurationFactor so setting Animation speed to Instant turns all motion off.
+setcfg kdeglobals KDE AnimationDurationFactor 1
+setcfg kwinrc Plugins scaleEnabled true
+setcfg kwinrc Plugins fadeEnabled false
+setcfg kwinrc Plugins glideEnabled false
+setcfg kwinrc Plugins squashEnabled true
+setcfg kwinrc Plugins magiclampEnabled false
+setcfg kwinrc Plugins maximizeEnabled true
+setcfg kwinrc Plugins wobblywindowsEnabled false
 setcfg kwinrc Plugins sheetEnabled true
 setcfg kwinrc Plugins dimscreenEnabled true
-setcfg kwinrc Plugins glideEnabled true
-setcfg kwinrc Plugins scaleEnabled false
-setcfg kwinrc Plugins fadeEnabled false
+setcfg kwinrc Plugins fadingpopupsEnabled true
+setcfg kwinrc Plugins slidingpopupsEnabled true
+setcfg kwinrc Plugins slidingnotificationsEnabled true
+setcfg kwinrc Effect-scale Duration 180
+setcfg kwinrc Effect-scale InScale 0.92
+setcfg kwinrc Effect-scale OutScale 0.92
+setcfg kwinrc Effect-slidingpopups SlideInTime 200
+setcfg kwinrc Effect-slidingpopups SlideOutTime 160
+setcfg klaunchrc FeedbackStyle BusyCursor true
+setcfg klaunchrc FeedbackStyle TaskbarButton true
+setcfg klaunchrc BusyCursorSettings Blinking false
+setcfg klaunchrc BusyCursorSettings Bouncing true
+setcfg klaunchrc BusyCursorSettings Timeout 5
+setcfg klaunchrc TaskbarButtonSettings Timeout 5
+setcfg plasmanotifyrc Notifications PopupPosition BottomRight
+setcfg plasmanotifyrc Notifications PopupTimeout 5000
+setcfg kded6rc Module-appmenu autoload true
 
 ### Start-up screen
 # Replace the scrolling text with a graphical splash: our animated logo.

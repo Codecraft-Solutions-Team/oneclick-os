@@ -1,5 +1,8 @@
 [General]
 LogoPath=/usr/share/pixmaps/oneclick-logo.svg
+Name=OneClick OS
+Version=0.1
+Variant=Desktop
 Website=https://github.com/Codecraft-Solutions-Team/oneclick-os
 UseOSReleaseVersion=false
-ShowSoftwareSection=false
+ShowBuild=false

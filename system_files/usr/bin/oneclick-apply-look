@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+# Switch OneClick OS between Windows style (default) and Mac style.
+# Usage:
+#   oneclick-apply-look windows [--config-only]
+#   oneclick-apply-look mac [--config-only]
+#   oneclick-apply-look --status
+set -euo pipefail
+
+usage() {
+    cat <<'EOF' >&2
+Usage: oneclick-apply-look <windows|mac|--status> [--config-only]
+EOF
+}
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+export XDG_CONFIG_HOME="$CONFIG_DIR"
+ONECLICK_DIR="$CONFIG_DIR/oneclick"
+STATE_FILE="$ONECLICK_DIR/look"
+LOCK_FILE="$ONECLICK_DIR/.look.lock"
+
+MODE=""
+STATUS_ONLY=0
+CONFIG_ONLY=0
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        windows|mac)
+            if [[ -n "$MODE" || $STATUS_ONLY -eq 1 ]]; then
+                usage
+                exit 1
+            fi
+            MODE="$1"
+            ;;
+        --status)
+            if [[ -n "$MODE" || $STATUS_ONLY -eq 1 ]]; then
+                usage
+                exit 1
+            fi
+            STATUS_ONLY=1
+            ;;
+        --config-only)
+            CONFIG_ONLY=1
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown option or style: $1" >&2
+            usage
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+read_current_status() {
+    local val=""
+    if [[ -r "$STATE_FILE" ]]; then
+        val="$(tr -d '[:space:]' < "$STATE_FILE" 2>/dev/null || true)"
+        if [[ "$val" == "windows" || "$val" == "mac" ]]; then
+            printf '%s\n' "$val"
+            return 0
+        fi
+    fi
+
+    if command -v kreadconfig6 >/dev/null 2>&1; then
+        val="$(kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage 2>/dev/null || true)"
+    elif [[ -r "$CONFIG_DIR/kdeglobals" ]]; then
+        val="$(awk -F= '/^\[KDE\]/{in_sec=1; next} /^\[/{in_sec=0} in_sec && $1=="LookAndFeelPackage"{print $2; exit}' "$CONFIG_DIR/kdeglobals" 2>/dev/null || true)"
+    fi
+
+    if [[ "$val" == "org.oneclick.mac" ]]; then
+        printf 'mac\n'
+    else
+        printf 'windows\n'
+    fi
+}
+
+if [[ $STATUS_ONLY -eq 1 ]]; then
+    read_current_status
+    exit 0
+fi
+
+if [[ -z "$MODE" ]]; then
+    usage
+    exit 1
+fi
+
+detect_aurorae_library() {
+    local base
+    for base in /usr/lib64/qt6/plugins /usr/lib/qt6/plugins /usr/lib/x86_64-linux-gnu/qt6/plugins /usr/lib/aarch64-linux-gnu/qt6/plugins; do
+        if [[ -e "${base}/org.kde.kdecoration3/org.kde.kwin.aurorae.v2.so" || -e "${base}/org.kde.kdecoration2/org.kde.kwin.aurorae.v2.so" ]]; then
+            printf 'org.kde.kwin.aurorae.v2\n'
+            return 0
+        fi
+        if [[ -e "${base}/org.kde.kdecoration3/org.kde.kwin.aurorae.so" || -e "${base}/org.kde.kdecoration2/org.kde.kwin.aurorae.so" ]]; then
+            printf 'org.kde.kwin.aurorae\n'
+            return 0
+        fi
+    done
+    printf 'org.kde.kwin.aurorae.v2\n'
+}
+
+cfg_write() {
+    local file="$1" group="$2" key="$3" value="$4"
+    kwriteconfig6 --file "$file" --group "$group" --key "$key" "$value"
+}
+
+mkdir -p "$ONECLICK_DIR"
+if command -v flock >/dev/null 2>&1; then
+    exec 9>"$LOCK_FILE"
+    flock 9
+fi
+
+AURORAE_LIB="$(detect_aurorae_library)"
+
+if [[ "$MODE" == "mac" ]]; then
+    LOOK_PKG="org.oneclick.mac"
+    DESKTOP_THEME="OneClickGlass"
+    GLASS_PANEL="true"
+    AURORAE_THEME="__aurorae__svg__OneClickMac"
+    BTN_LEFT="XIA"
+    BTN_RIGHT=""
+    CUSTOM_BTNS="true"
+    SQUASH="false"
+    MAGIC_LAMP="true"
+    BLUR="true"
+    TRANSLUCENCY="true"
+    NOTIFY_POS="TopRight"
+else
+    LOOK_PKG="org.oneclick.desktop"
+    DESKTOP_THEME="default"
+    GLASS_PANEL="false"
+    AURORAE_THEME="__aurorae__svg__OneClick"
+    BTN_LEFT="M"
+    BTN_RIGHT="IAX"
+    CUSTOM_BTNS="false"
+    SQUASH="true"
+    MAGIC_LAMP="false"
+    BLUR="false"
+    TRANSLUCENCY="false"
+    NOTIFY_POS="BottomRight"
+fi
+
+LIVE_SESSION=0
+if [[ $CONFIG_ONLY -eq 0 ]]; then
+    if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" && -S "/run/user/$(id -u)/bus" ]]; then
+        export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
+    fi
+    if [[ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]] && command -v qdbus-qt6 >/dev/null 2>&1; then
+        if qdbus-qt6 org.kde.plasmashell /PlasmaShell >/dev/null 2>&1; then
+            LIVE_SESSION=1
+        fi
+    fi
+fi
+
+# Run global theme reset BEFORE writing our explicit KWin/Plasma/notification overrides,
+# because plasma-apply-lookandfeel --resetLayout resets layout and plugin defaults.
+if [[ $LIVE_SESSION -eq 1 ]]; then
+    if command -v plasma-apply-lookandfeel >/dev/null 2>&1; then
+        plasma-apply-lookandfeel -a "$LOOK_PKG" --resetLayout
+    fi
+    if command -v plasma-apply-desktoptheme >/dev/null 2>&1; then
+        plasma-apply-desktoptheme "$DESKTOP_THEME" >/dev/null 2>&1 || true
+    fi
+fi
+
+if ! command -v kwriteconfig6 >/dev/null 2>&1; then
+    echo "kwriteconfig6 not found" >&2
+    exit 1
+fi
+
+cfg_write kdeglobals KDE LookAndFeelPackage "$LOOK_PKG"
+
+cfg_write plasmarc Theme name "$DESKTOP_THEME"
+cfg_write plasmarc OneClick GlassPanel "$GLASS_PANEL"
+
+cfg_write kwinrc org.kde.kdecoration2 library "$AURORAE_LIB"
+cfg_write kwinrc org.kde.kdecoration2 theme "$AURORAE_THEME"
+cfg_write kwinrc org.kde.kdecoration2 ButtonsOnLeft "$BTN_LEFT"
+cfg_write kwinrc org.kde.kdecoration2 ButtonsOnRight "$BTN_RIGHT"
+cfg_write kwinrc org.kde.kdecoration2 CustomButtonPositions "$CUSTOM_BTNS"
+
+cfg_write kwinrc Plugins squashEnabled "$SQUASH"
+cfg_write kwinrc Plugins magiclampEnabled "$MAGIC_LAMP"
+cfg_write kwinrc Plugins blurEnabled "$BLUR"
+cfg_write kwinrc Plugins translucencyEnabled "$TRANSLUCENCY"
+cfg_write kwinrc Plugins scaleEnabled true
+cfg_write kwinrc Plugins maximizeEnabled true
+cfg_write kwinrc Plugins wobblywindowsEnabled false
+cfg_write kwinrc Plugins glideEnabled false
+cfg_write kwinrc Plugins fadeEnabled false
+
+if [[ "$MODE" == "mac" ]]; then
+    cfg_write kwinrc Effect-blur BlurStrength 8
+    cfg_write kwinrc Effect-blur NoiseStrength 0
+    cfg_write kwinrc Effect-translucency Menus 90
+    cfg_write kwinrc Effect-translucency DropdownMenus 90
+    cfg_write kwinrc Effect-translucency PopupMenus 90
+fi
+
+cfg_write plasmanotifyrc Notifications PopupPosition "$NOTIFY_POS"
+cfg_write kded6rc Module-appmenu autoload true
+
+printf '%s\n' "$MODE" > "${STATE_FILE}.tmp"
+mv -f "${STATE_FILE}.tmp" "$STATE_FILE"
+
+if [[ $LIVE_SESSION -eq 1 ]]; then
+    qdbus-qt6 org.kde.kded6 /kded loadModule appmenu >/dev/null 2>&1 || true
+    qdbus-qt6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true
+fi

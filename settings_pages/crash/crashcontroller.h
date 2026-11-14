@@ -15,6 +15,7 @@ class CrashController : public QObject
     Q_PROPERTY(bool canReopen READ canReopen CONSTANT)
     Q_PROPERTY(bool copied READ copied NOTIFY copiedChanged)
     Q_PROPERTY(QString technicalDetails READ technicalDetails NOTIFY detailsChanged)
+    Q_PROPERTY(int expandDurationMs READ expandDurationMs CONSTANT)
 
 public:
     explicit CrashController(const QStringList &arguments, QObject *parent = nullptr);
@@ -26,6 +27,7 @@ public:
     bool canReopen() const { return !m_executablePath.isEmpty(); }
     bool copied() const { return m_copied; }
     QString technicalDetails() const;
+    int expandDurationMs() const { return m_expandDurationMs; }
 
     Q_INVOKABLE void reopen();
     Q_INVOKABLE void copyDetails();
@@ -53,5 +55,6 @@ private:
     QString m_coredumpOutput;
     bool m_hasCrashInfo = false;
     bool m_copied = false;
+    int m_expandDurationMs = 140;
     QProcess *m_coredumpProc = nullptr;
 };

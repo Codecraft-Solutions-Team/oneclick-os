@@ -2,11 +2,13 @@
 
 #include <QClipboard>
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSettings>
 #include <QStandardPaths>
 #include <QTimer>
 
@@ -69,10 +71,35 @@ QString jsonString(const QJsonObject &obj, const QString &key)
     return obj.value(key).toVariant().toString().trimmed();
 }
 
+int computeExpandDurationMs()
+{
+    const QStringList dirs = QStandardPaths::standardLocations(QStandardPaths::GenericConfigLocation);
+    for (const QString &dir : dirs) {
+        const QString path = QDir(dir).filePath(QStringLiteral("kdeglobals"));
+        if (!QFileInfo::exists(path)) {
+            continue;
+        }
+        QSettings cfg(path, QSettings::IniFormat);
+        cfg.beginGroup(QStringLiteral("KDE"));
+        if (cfg.contains(QStringLiteral("AnimationDurationFactor"))) {
+            bool ok = false;
+            const double factor = cfg.value(QStringLiteral("AnimationDurationFactor")).toDouble(&ok);
+            if (ok) {
+                if (factor <= 0.0) {
+                    return 0;
+                }
+                return qRound(140.0 * qBound(0.0, factor, 5.0));
+            }
+        }
+    }
+    return 140;
+}
+
 } // namespace
 
 CrashController::CrashController(const QStringList &arguments, QObject *parent)
     : QObject(parent)
+    , m_expandDurationMs(computeExpandDurationMs())
 {
     parseArguments(arguments);
     resolveExecutable();

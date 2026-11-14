@@ -19,7 +19,7 @@ Window {
 
     Behavior on height {
         NumberAnimation {
-            duration: 140
+            duration: crash.expandDurationMs
         }
     }
 
@@ -52,7 +52,7 @@ Window {
     }
 
     Shortcut {
-        sequence: StandardKey.Cancel
+        sequences: [StandardKey.Cancel]
         onActivated: crash.closeDialog()
     }
 

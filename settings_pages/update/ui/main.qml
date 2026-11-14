@@ -18,26 +18,45 @@ KCM.SimpleKCM {
         kcm.loadVersions()
     }
 
+    component MotionButton: QQC2.Button {
+        scale: down && Kirigami.Units.longDuration > 0 ? 0.98 : 1.0
+        Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
+    }
+
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing * 2
 
         // ---- status card --------------------------------------------------
         Kirigami.AbstractCard {
+            id: statusCard
+            property bool shown: Kirigami.Units.longDuration === 0
             Layout.fillWidth: true
+            opacity: shown ? 1.0 : 0.0
+            transform: Translate {
+                y: statusCard.shown ? 0 : 8
+                Behavior on y { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            }
+            Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            Component.onCompleted: shown = true
+
             contentItem: ColumnLayout {
                 spacing: Kirigami.Units.largeSpacing
 
                 RowLayout {
                     spacing: Kirigami.Units.largeSpacing
                     Kirigami.Icon {
+                        id: statusIcon
                         source: kcm.state === "error" ? "dialog-error"
                               : kcm.state === "uptodate" ? "checkmark" : "oneclick-update"
                         Layout.preferredWidth: Kirigami.Units.iconSizes.huge
                         Layout.preferredHeight: Kirigami.Units.iconSizes.huge
-                        RotationAnimator on rotation {
-                            running: kcm.state === "checking"
+                        onSourceChanged: rotation = 0
+                        RotationAnimator {
+                            target: statusIcon
+                            running: kcm.state === "checking" && Kirigami.Units.longDuration > 0
                             from: 0; to: 360; duration: 1400; loops: Animation.Infinite
-                            onRunningChanged: if (!running) target.rotation = 0
+                            onRunningChanged: if (!running) statusIcon.rotation = 0
+                            onStopped: statusIcon.rotation = 0
                         }
                     }
                     ColumnLayout {
@@ -85,7 +104,7 @@ KCM.SimpleKCM {
                         from: 0
                         to: Math.max(1, kcm.totalMb)
                         value: kcm.doneMb
-                        Behavior on value { NumberAnimation { duration: 900 } }
+                        Behavior on value { NumberAnimation { duration: Kirigami.Units.longDuration > 0 ? 900 : 0 } }
                     }
                     RowLayout {
                         visible: kcm.state === "downloading"
@@ -103,26 +122,26 @@ KCM.SimpleKCM {
                 RowLayout {
                     Layout.alignment: Qt.AlignRight
                     spacing: Kirigami.Units.smallSpacing
-                    QQC2.Button {
+                    MotionButton {
                         visible: ["idle", "uptodate", "error"].includes(kcm.state)
                         text: "Check now"
                         icon.name: "view-refresh"
                         onClicked: kcm.check()
                     }
-                    QQC2.Button {
+                    MotionButton {
                         visible: kcm.state === "available"
                         text: "Download"
                         icon.name: "download"
                         onClicked: kcm.download(false)
                     }
-                    QQC2.Button {
+                    MotionButton {
                         visible: kcm.state === "available"
                         text: "Download and restart"
                         icon.name: "system-reboot"
                         highlighted: true
                         onClicked: kcm.download(true)
                     }
-                    QQC2.Button {
+                    MotionButton {
                         visible: kcm.state === "ready"
                         text: "Restart now"
                         icon.name: "system-reboot"
@@ -175,8 +194,21 @@ KCM.SimpleKCM {
                 delegate: Kirigami.AbstractCard {
                     id: card
                     required property string modelData
+                    required property int index
                     property bool open: false
+                    property bool shown: Kirigami.Units.longDuration === 0
                     Layout.fillWidth: true
+                    opacity: shown ? 1.0 : 0.0
+                    transform: Translate {
+                        y: card.shown ? 0 : 8
+                        Behavior on y { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+                    }
+                    Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+                    Timer {
+                        running: !card.shown
+                        interval: Math.min(card.index, 5) * 40
+                        onTriggered: card.shown = true
+                    }
                     contentItem: ColumnLayout {
                         RowLayout {
                             Kirigami.Icon { source: "oneclick-update"; Layout.preferredWidth: Kirigami.Units.iconSizes.medium; Layout.preferredHeight: Kirigami.Units.iconSizes.medium }
@@ -191,10 +223,12 @@ KCM.SimpleKCM {
                             }
                         }
                         RowLayout {
-                            visible: card.open
+                            visible: card.open || opacity > 0
+                            opacity: card.open ? 1.0 : 0.0
+                            Behavior on opacity { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
                             Layout.alignment: Qt.AlignRight
-                            QQC2.Button { text: "Download"; onClicked: kcm.installVersion(card.modelData, false) }
-                            QQC2.Button { text: "Download and restart"; onClicked: kcm.installVersion(card.modelData, true) }
+                            MotionButton { text: "Download"; onClicked: kcm.installVersion(card.modelData, false) }
+                            MotionButton { text: "Download and restart"; onClicked: kcm.installVersion(card.modelData, true) }
                         }
                     }
                 }
@@ -206,7 +240,7 @@ KCM.SimpleKCM {
             }
         }
 
-        QQC2.Button {
+        MotionButton {
             text: "Undo the last update"
             icon.name: "edit-undo"
             enabled: !page.busy

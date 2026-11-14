@@ -33,12 +33,27 @@ KCM.SimpleKCM {
         }
     }
 
+    component MotionButton: QQC2.Button {
+        scale: down && Kirigami.Units.longDuration > 0 ? 0.98 : 1.0
+        Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
+    }
+
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
 
         // ---- Live flat desktop preview ------------------------------------
         Kirigami.AbstractCard {
+            id: previewCard
+            property bool shown: Kirigami.Units.longDuration === 0
             Layout.fillWidth: true
+            opacity: shown ? 1.0 : 0.0
+            transform: Translate {
+                y: previewCard.shown ? 0 : 8
+                Behavior on y { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            }
+            Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            Component.onCompleted: shown = true
+
             contentItem: ColumnLayout {
                 spacing: Kirigami.Units.smallSpacing
 
@@ -79,8 +94,8 @@ KCM.SimpleKCM {
                                 ? (parent.height - desktopPreview.barHeight - desktopPreview.edgeGap - 28)
                                 : (parent.height - 24)
 
-                        Behavior on y { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                        Behavior on y { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+                        Behavior on height { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
 
                         // Flat title bar
                         Rectangle {
@@ -156,12 +171,13 @@ KCM.SimpleKCM {
                         border.width: 1
                         opacity: kcm.hiding === "none" ? 1.0 : (kcm.hiding === "dodgewindows" ? 0.55 : 0.45)
 
-                        Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        Behavior on width { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        Behavior on y { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-                        Behavior on radius { NumberAnimation { duration: 150 } }
-                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on x { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
+                        Behavior on width { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
+                        Behavior on height { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
+                        Behavior on y { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+                        Behavior on radius { NumberAnimation { duration: Kirigami.Units.shortDuration } }
+                        Behavior on opacity { NumberAnimation { duration: Kirigami.Units.shortDuration } }
+                        Behavior on border.color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
 
                         Row {
                             anchors.left: parent.left
@@ -247,7 +263,20 @@ KCM.SimpleKCM {
 
         // ---- Controls -----------------------------------------------------
         Kirigami.FormLayout {
+            id: controlsForm
+            property bool shown: Kirigami.Units.longDuration === 0
             Layout.fillWidth: true
+            opacity: shown ? 1.0 : 0.0
+            transform: Translate {
+                y: controlsForm.shown ? 0 : 8
+                Behavior on y { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            }
+            Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            Timer {
+                running: !controlsForm.shown
+                interval: 50
+                onTriggered: controlsForm.shown = true
+            }
 
             QQC2.ButtonGroup { id: hidingGroup }
 
@@ -287,14 +316,14 @@ KCM.SimpleKCM {
                 Kirigami.FormData.label: "Position:"
                 spacing: 0
 
-                QQC2.Button {
+                MotionButton {
                     id: bottomBtn
                     text: "Bottom"
                     checkable: true
                     QQC2.ButtonGroup.group: locationGroup
                     onClicked: page.applyCurrent(kcm.hiding, kcm.floating, "bottom", kcm.size)
                 }
-                QQC2.Button {
+                MotionButton {
                     id: topBtn
                     text: "Top"
                     checkable: true
@@ -308,21 +337,21 @@ KCM.SimpleKCM {
                 Kirigami.FormData.label: "Size:"
                 spacing: 0
 
-                QQC2.Button {
+                MotionButton {
                     id: smallBtn
                     text: "Small"
                     checkable: true
                     QQC2.ButtonGroup.group: sizeGroup
                     onClicked: page.applyCurrent(kcm.hiding, kcm.floating, kcm.location, "small")
                 }
-                QQC2.Button {
+                MotionButton {
                     id: mediumBtn
                     text: "Medium"
                     checkable: true
                     QQC2.ButtonGroup.group: sizeGroup
                     onClicked: page.applyCurrent(kcm.hiding, kcm.floating, kcm.location, "medium")
                 }
-                QQC2.Button {
+                MotionButton {
                     id: largeBtn
                     text: "Large"
                     checkable: true

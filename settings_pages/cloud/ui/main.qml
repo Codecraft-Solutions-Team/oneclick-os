@@ -16,16 +16,20 @@ KCM.SimpleKCM {
         implicitHeight: 36
         leftPadding: 16
         rightPadding: 16
+        scale: btn.down && Kirigami.Units.longDuration > 0 ? 0.98 : 1.0
+        Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
 
         background: Rectangle {
             radius: 6
             color: {
                 if (!btn.enabled) return "#162038"
-                if (btn.primary) return btn.down ? "#14b8a6" : "#2dd4bf"
-                return btn.down ? "#162038" : "#0a1020"
+                if (btn.primary) return btn.down ? "#14b8a6" : (btn.hovered ? "#5eead4" : "#2dd4bf")
+                return btn.down ? "#162038" : (btn.hovered ? "#131d36" : "#0a1020")
             }
-            border.color: btn.primary ? "transparent" : "#22304d"
+            border.color: btn.primary ? "transparent" : (btn.hovered ? "#2dd4bf" : "#22304d")
             border.width: btn.primary ? 0 : 1
+            Behavior on color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
+            Behavior on border.color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
         }
 
         contentItem: QQC2.Label {
@@ -51,6 +55,8 @@ KCM.SimpleKCM {
         color: active ? "#0f2e2b" : "#0a1020"
         border.color: active ? "#2dd4bf" : (busy ? "#2dd4bf" : "#22304d")
         border.width: 1
+        Behavior on color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
+        Behavior on border.color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
 
         QQC2.Label {
             id: pillText
@@ -67,12 +73,21 @@ KCM.SimpleKCM {
 
         // ---- Header card ---------------------------------------------------
         Rectangle {
+            id: cloudHeaderCard
+            property bool shown: Kirigami.Units.longDuration === 0
             Layout.fillWidth: true
             implicitHeight: headerLayout.implicitHeight + 28
             radius: 6
             color: "#0b1224"
             border.color: "#22304d"
             border.width: 1
+            opacity: shown ? 1.0 : 0.0
+            transform: Translate {
+                y: cloudHeaderCard.shown ? 0 : 8
+                Behavior on y { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            }
+            Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            Component.onCompleted: shown = true
 
             RowLayout {
                 id: headerLayout
@@ -116,12 +131,21 @@ KCM.SimpleKCM {
 
         // ---- OneDrive card -------------------------------------------------
         Rectangle {
+            id: oneDriveCard
+            property bool shown: Kirigami.Units.longDuration === 0
             Layout.fillWidth: true
             implicitHeight: oneDriveLayout.implicitHeight + 32
             radius: 6
             color: "#0b1224"
             border.color: "#22304d"
             border.width: 1
+            opacity: shown ? 1.0 : 0.0
+            transform: Translate {
+                y: oneDriveCard.shown ? 0 : 10
+                Behavior on y { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            }
+            Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            Timer { interval: 50; running: !oneDriveCard.shown; onTriggered: oneDriveCard.shown = true }
 
             ColumnLayout {
                 id: oneDriveLayout
@@ -246,12 +270,21 @@ KCM.SimpleKCM {
 
         // ---- Google Drive card ---------------------------------------------
         Rectangle {
+            id: gdriveCard
+            property bool shown: Kirigami.Units.longDuration === 0
             Layout.fillWidth: true
             implicitHeight: gdriveLayout.implicitHeight + 32
             radius: 6
             color: "#0b1224"
             border.color: "#22304d"
             border.width: 1
+            opacity: shown ? 1.0 : 0.0
+            transform: Translate {
+                y: gdriveCard.shown ? 0 : 10
+                Behavior on y { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            }
+            Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+            Timer { interval: 100; running: !gdriveCard.shown; onTriggered: gdriveCard.shown = true }
 
             ColumnLayout {
                 id: gdriveLayout

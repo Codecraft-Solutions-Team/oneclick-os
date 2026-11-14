@@ -1,0 +1,10 @@
+{
+    "KPlugin": {
+        "Name": "Look",
+        "Description": "Choose a Windows-style taskbar or a Mac-style top bar and dock",
+        "Icon": "oneclick-look"
+    },
+    "X-KDE-Keywords": "look,layout,style,windows,mac,macos,taskbar,dock,menu bar,glass,theme",
+    "X-KDE-System-Settings-Parent-Category": "workspace",
+    "X-KDE-Weight": 0
+}
