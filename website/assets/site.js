@@ -210,7 +210,7 @@ window.OneClickWrite = function (svg, onDone) {
   box.addEventListener('change', set); set();
 })();
 
-/* ---------- report form: files the report on GitHub through our Firebase function ---------- */
+/* ---------- report form: sent to our private report inbox through our Firebase function ---------- */
 (function () {
   const f = document.getElementById('report');
   if (!f) return;
@@ -225,7 +225,7 @@ window.OneClickWrite = function (svg, onDone) {
       if (!r.ok) throw new Error(out.error || (r.status === 404 || r.status >= 500 ? 'Reports are not switched on yet. We are finishing the setup, please try again later.' : 'Something went wrong. Please try again.'));
       f.querySelectorAll('label, .btn, #report-note').forEach(el => el.hidden = true);
       sent.hidden = false;
-      sent.innerHTML = `<h2>Thank you. Report #${out.number} is filed.</h2><p>You can follow it <a href="${out.url}">on GitHub</a>.</p><button class="btn ghost" type="button" onclick="location.reload()">Send another</button>`;
+      sent.innerHTML = `<h2>Thank you. We have your report.</h2><p>Your reference is <b>${out.reference}</b>.${out.url ? ` A public copy, without your email, is <a href="${out.url}">issue #${out.number} on GitHub</a>.` : ''} If you left an email, we will reply there.</p><button class="btn ghost" type="button" onclick="location.reload()">Send another</button>`;
     } catch (err) {
       btn.disabled = false; btn.textContent = 'Send report';
       let msg = f.querySelector('.err'); if (!msg) { msg = document.createElement('p'); msg.className = 'err'; btn.after(msg); }
