@@ -19,6 +19,9 @@ PlasmoidItem {
     property int openCounter: 0
     property int appsRevision: 0
     property int runnerRevision: 0
+    property string defaultBrowserDesktopId: "org.mozilla.firefox.desktop"
+    property bool pinnedRebuildQueued: false
+    property bool searchRebuildQueued: false
 
     readonly property color bgNavy: "#0a1020"
     readonly property color bgPanel: "#0b1224"
@@ -32,16 +35,197 @@ PlasmoidItem {
     readonly property int animLong: animationsEnabled ? Kirigami.Units.longDuration : 0
     readonly property bool glassMode: KSvg.ImageSet.imageSetName === "OneClickGlass"
 
+    readonly property var allAppsModel: (appsRoot.count > 0 && root.appsRevision >= 0) ? root.findAllAppsModel() : null
+    readonly property var runnerResultsModel: (runner.count > 0 && root.runnerRevision >= 0) ? root.findRunnerResultsModel() : null
+
+    readonly property var defaultAppMeta: ({
+        "preferred://browser": {
+            name: "Firefox",
+            icon: "firefox",
+            exec: "xdg-open https://"
+        },
+        "org.mozilla.firefox.desktop": {
+            name: "Firefox",
+            icon: "firefox",
+            exec: "firefox"
+        },
+        "org.kde.dolphin.desktop": {
+            name: "Files",
+            icon: "org.kde.dolphin",
+            exec: "dolphin"
+        },
+        "org.kde.discover.desktop": {
+            name: "App Store",
+            icon: "plasmadiscover",
+            exec: "plasma-discover"
+        },
+        "systemsettings.desktop": {
+            name: "Settings",
+            icon: "preferences-system",
+            exec: "systemsettings"
+        },
+        "org.kde.kwrite.desktop": {
+            name: "Text Editor",
+            icon: "kwrite",
+            exec: "kwrite"
+        },
+        "org.kde.konsole.desktop": {
+            name: "Terminal",
+            icon: "utilities-terminal",
+            exec: "konsole"
+        },
+        "org.kde.spectacle.desktop": {
+            name: "Screenshot",
+            icon: "spectacle",
+            exec: "spectacle"
+        },
+        "oneclick-update.desktop": {
+            name: "Update",
+            icon: "oneclick-update",
+            exec: "/usr/bin/oneclick-update"
+        },
+        "org.kde.plasma-systemmonitor.desktop": {
+            name: "Task Manager",
+            icon: "utilities-system-monitor",
+            exec: "plasma-systemmonitor"
+        },
+        "oneclick-web-claude.desktop": {
+            name: "Claude",
+            icon: "oneclick-web-claude",
+            exec: "xdg-open https://claude.ai"
+        },
+        "oneclick-web-chatgpt.desktop": {
+            name: "ChatGPT",
+            icon: "oneclick-web-chatgpt",
+            exec: "xdg-open https://chatgpt.com"
+        },
+        "oneclick-cloud-nvidia.desktop": {
+            name: "GeForce NOW",
+            icon: "oneclick-cloud-gaming",
+            exec: "xdg-open https://play.geforcenow.com"
+        },
+        "oneclick-cloud-xbox.desktop": {
+            name: "Xbox Cloud Gaming",
+            icon: "oneclick-cloud-gaming",
+            exec: "xdg-open https://www.xbox.com/play"
+        }
+    })
+
+    readonly property var settingsCatalog: [
+        {
+            name: "Display & Monitor",
+            icon: "oneclick-settings-display",
+            kcm: "kcm_kscreen",
+            keywords: "display monitor screen resolution scaling refresh rate brightness orientation"
+        },
+        {
+            name: "Sound",
+            icon: "oneclick-settings-sound",
+            kcm: "kcm_pulseaudio",
+            keywords: "sound audio volume speaker speakers microphone output input mute"
+        },
+        {
+            name: "Wi-Fi & Network",
+            icon: "oneclick-settings-network",
+            kcm: "kcm_networkmanagement",
+            keywords: "wifi wi-fi wireless network internet ethernet vpn connection"
+        },
+        {
+            name: "Bluetooth",
+            icon: "oneclick-settings-bluetooth",
+            kcm: "kcm_bluetooth",
+            keywords: "bluetooth wireless headphones mouse pairing devices"
+        },
+        {
+            name: "Taskbar",
+            icon: "oneclick-settings-taskbar",
+            kcm: "kcm_oneclick_taskbar",
+            keywords: "taskbar panel pins clock start menu alignment bottom"
+        },
+        {
+            name: "Windows Apps",
+            icon: "oneclick-settings-windowsapps",
+            kcm: "kcm_oneclick_windows",
+            keywords: "windows exe msi apps compatibility runner"
+        },
+        {
+            name: "Cloud Drives",
+            icon: "oneclick-settings-clouddrives",
+            kcm: "kcm_oneclick_cloud",
+            keywords: "cloud drives onedrive google drive dropbox nextcloud sync files"
+        },
+        {
+            name: "Desktop Look",
+            icon: "oneclick-settings-look",
+            kcm: "kcm_oneclick_look",
+            keywords: "desktop look style mode appearance theme windows mac glass dock"
+        },
+        {
+            name: "System Update",
+            icon: "oneclick-update",
+            kcm: "kcm_oneclick_update",
+            keywords: "system update updates upgrade check software"
+        },
+        {
+            name: "About This PC",
+            icon: "oneclick-settings-about",
+            kcm: "kcm_about-distro",
+            keywords: "about this pc system info version specs hardware memory cpu os"
+        },
+        {
+            name: "Power Management",
+            icon: "oneclick-settings-power",
+            kcm: "kcm_powerdevilprofilesconfig",
+            keywords: "power battery sleep screen suspend performance energy saving"
+        },
+        {
+            name: "Keyboard",
+            icon: "oneclick-settings-keyboard",
+            kcm: "kcm_keyboard",
+            keywords: "keyboard layout shortcuts typing repeat rate"
+        },
+        {
+            name: "Mouse & Touchpad",
+            icon: "oneclick-settings-mouse",
+            kcm: "kcm_touchpad",
+            keywords: "mouse touchpad trackpad cursor pointer scroll tap click"
+        },
+        {
+            name: "Users",
+            icon: "oneclick-settings-users",
+            kcm: "kcm_users",
+            keywords: "users user account accounts password login avatar"
+        },
+        {
+            name: "Night Light",
+            icon: "oneclick-settings-nightlight",
+            kcm: "kcm_nightlight",
+            keywords: "night light blue light color temperature warm sunset evening"
+        }
+    ]
+
     preferredRepresentation: compactRepresentation
     Plasmoid.backgroundHints: glassMode ? PlasmaCore.Types.DefaultBackground : PlasmaCore.Types.StandardBackground
     switchWidth: 0
     switchHeight: 0
 
-    onExpandedChanged: {
-        if (expanded) {
-            query = ""
-            showAll = false
-            openCounter += 1
+    Connections {
+        target: root
+        function onExpandedChanged() {
+            if (root.expanded) {
+                root.query = ""
+                root.showAll = false
+                root.openCounter += 1
+            }
+        }
+    }
+
+    onQueryChanged: scheduleSearchRebuild()
+
+    Connections {
+        target: Plasmoid.configuration
+        function onPinnedChanged() {
+            root.schedulePinnedRebuild()
         }
     }
 
@@ -61,25 +245,10 @@ PlasmoidItem {
         showPowerSession: false
         showFavoritesPlaceholder: false
 
-        property bool favoritesInitDone: false
-
-        function initFavorites() {
-            if (!favoritesModel) {
-                return
-            }
-            if (!favoritesInitDone || favoritesModel.favorites.length === 0) {
-                favoritesModel.initForClient("org.oneclick.startmenu.pinned.instance-" + Plasmoid.id)
-                favoritesInitDone = true
-                if (favoritesModel.favorites.length === 0) {
-                    favoritesModel.favorites = Plasmoid.configuration.pinned
-                }
-            }
-        }
-
-        Component.onCompleted: initFavorites()
         onRefreshed: {
-            initFavorites()
             root.appsRevision += 1
+            root.schedulePinnedRebuild()
+            root.scheduleSearchRebuild()
         }
     }
 
@@ -87,11 +256,9 @@ PlasmoidItem {
         id: runner
         appletInterface: root
         mergeResults: true
-        favoritesModel: appsRoot.favoritesModel
         runners: [
             "krunner_services",
             "krunner_systemsettings",
-            "krunner_filenamesearch",
             "baloosearch",
             "calculator",
             "krunner_sessions",
@@ -99,8 +266,14 @@ PlasmoidItem {
         ]
         query: root.query
 
-        onQueryFinished: root.runnerRevision += 1
-        onAnyRunnerFinished: root.runnerRevision += 1
+        onQueryFinished: {
+            root.runnerRevision += 1
+            root.scheduleSearchRebuild()
+        }
+        onAnyRunnerFinished: {
+            root.runnerRevision += 1
+            root.scheduleSearchRebuild()
+        }
     }
 
     P5Support.DataSource {
@@ -109,6 +282,346 @@ PlasmoidItem {
         connectedSources: []
         onNewData: (source) => disconnectSource(source)
         function run(cmd) { connectSource(cmd) }
+    }
+
+    P5Support.DataSource {
+        id: browserProbe
+        engine: "executable"
+        connectedSources: ["xdg-settings get default-web-browser"]
+        onNewData: (source, data) => {
+            var out = (data && data["stdout"]) ? String(data["stdout"]).trim() : ""
+            if (out.endsWith(".desktop")) {
+                root.defaultBrowserDesktopId = out
+                root.schedulePinnedRebuild()
+            }
+            disconnectSource(source)
+        }
+    }
+
+    ListModel {
+        id: pinnedModel
+    }
+
+    ListModel {
+        id: searchResultsModel
+    }
+
+    // Hidden probes expose Kicker's named roles cleanly without brittle role enum guesses.
+    Item {
+        visible: false
+        width: 0
+        height: 0
+
+        Repeater {
+            id: allAppsProbe
+            model: root.allAppsModel
+            delegate: Item {
+                readonly property string favId: model.favoriteId !== undefined ? String(model.favoriteId) : ""
+                readonly property string appUrl: model.url !== undefined ? String(model.url) : ""
+                readonly property string displayName: model.display !== undefined ? String(model.display) : ""
+                readonly property string desc: model.description !== undefined ? String(model.description) : ""
+                readonly property var iconVal: model.decoration !== undefined ? model.decoration : "application-x-executable"
+            }
+            onCountChanged: {
+                root.schedulePinnedRebuild()
+                root.scheduleSearchRebuild()
+            }
+            onItemAdded: {
+                root.schedulePinnedRebuild()
+                root.scheduleSearchRebuild()
+            }
+            onItemRemoved: {
+                root.schedulePinnedRebuild()
+                root.scheduleSearchRebuild()
+            }
+        }
+
+        Repeater {
+            id: runnerProbe
+            model: root.runnerResultsModel
+            delegate: Item {
+                readonly property string favId: model.favoriteId !== undefined ? String(model.favoriteId) : ""
+                readonly property string appUrl: model.url !== undefined ? String(model.url) : ""
+                readonly property string displayName: model.display !== undefined ? String(model.display) : ""
+                readonly property string desc: model.description !== undefined ? String(model.description) : ""
+                readonly property var iconVal: model.decoration !== undefined ? model.decoration : "application-x-executable"
+            }
+            onCountChanged: root.scheduleSearchRebuild()
+            onItemAdded: root.scheduleSearchRebuild()
+            onItemRemoved: root.scheduleSearchRebuild()
+        }
+    }
+
+    Component.onCompleted: rebuildPinnedModel()
+
+    function schedulePinnedRebuild() {
+        if (!pinnedRebuildQueued) {
+            pinnedRebuildQueued = true
+            Qt.callLater(rebuildPinnedModel)
+        }
+    }
+
+    function scheduleSearchRebuild() {
+        if (!searchRebuildQueued) {
+            searchRebuildQueued = true
+            Qt.callLater(rebuildSearchModel)
+        }
+    }
+
+    function normalizeDesktopId(raw) {
+        var s = (raw !== undefined && raw !== null) ? String(raw).trim() : ""
+        if (s.length === 0) {
+            return ""
+        }
+        if (s.indexOf("preferred://") === 0) {
+            return s
+        }
+        if (s.indexOf("applications:") === 0) {
+            s = s.slice("applications:".length)
+        }
+        var slash = s.lastIndexOf("/")
+        if (slash >= 0) {
+            s = s.slice(slash + 1)
+        }
+        return s.trim()
+    }
+
+    function stemDesktopId(desktopId) {
+        var s = normalizeDesktopId(desktopId)
+        if (s.endsWith(".desktop")) {
+            return s.slice(0, s.length - ".desktop".length)
+        }
+        return s
+    }
+
+    function buildAppLookup() {
+        var byId = ({})
+        var byStem = ({})
+        for (var i = 0; i < allAppsProbe.count; i++) {
+            var it = allAppsProbe.itemAt(i)
+            if (!it) {
+                continue
+            }
+            var idFromFav = normalizeDesktopId(it.favId)
+            var idFromUrl = normalizeDesktopId(it.appUrl)
+            var desktopId = idFromFav.length > 0 ? idFromFav : idFromUrl
+            var entry = {
+                row: i,
+                desktopId: desktopId,
+                name: it.displayName,
+                iconName: (typeof it.iconVal === "string") ? it.iconVal : "",
+                favId: it.favId,
+                url: it.appUrl
+            }
+            if (idFromFav.length > 0 && !byId[idFromFav]) {
+                byId[idFromFav] = entry
+                byStem[stemDesktopId(idFromFav)] = entry
+            }
+            if (idFromUrl.length > 0 && !byId[idFromUrl]) {
+                byId[idFromUrl] = entry
+                byStem[stemDesktopId(idFromUrl)] = entry
+            }
+        }
+        return { byId: byId, byStem: byStem }
+    }
+
+    function lookupAppEntry(lookup, rawPinId) {
+        var id = normalizeDesktopId(rawPinId)
+        if (id === "preferred://browser") {
+            var browserEntry = lookup.byId[defaultBrowserDesktopId] || lookup.byStem[stemDesktopId(defaultBrowserDesktopId)]
+            if (browserEntry) {
+                return browserEntry
+            }
+            return lookup.byStem["firefox"] || lookup.byStem["chromium"] || null
+        }
+        return lookup.byId[id] || lookup.byStem[stemDesktopId(id)] || null
+    }
+
+    function rebuildPinnedModel() {
+        pinnedRebuildQueued = false
+        var rawPinned = (Plasmoid.configuration && Plasmoid.configuration.pinned)
+            ? Plasmoid.configuration.pinned
+            : []
+        var lookup = buildAppLookup()
+        pinnedModel.clear()
+
+        for (var i = 0; i < rawPinned.length; i++) {
+            var configKey = String(rawPinned[i]).trim()
+            if (configKey.length === 0) {
+                continue
+            }
+            var normId = normalizeDesktopId(configKey)
+            var appEntry = lookupAppEntry(lookup, configKey)
+            var meta = defaultAppMeta[configKey] || defaultAppMeta[normId] || null
+            var effectiveDesktopId = appEntry && appEntry.desktopId.length > 0
+                ? appEntry.desktopId
+                : (normId === "preferred://browser" ? defaultBrowserDesktopId : normId)
+            var display = (appEntry && appEntry.name.length > 0)
+                ? appEntry.name
+                : (meta ? meta.name : stemDesktopId(effectiveDesktopId))
+            var fallbackIcon = (appEntry && appEntry.iconName.length > 0)
+                ? appEntry.iconName
+                : (meta ? meta.icon : "application-x-executable")
+            var launcherId = configKey.indexOf("preferred://") === 0
+                ? configKey
+                : (effectiveDesktopId.endsWith(".desktop") ? ("applications:" + effectiveDesktopId) : "")
+            var fallbackCommand = meta ? meta.exec : ""
+
+            pinnedModel.append({
+                configKey: configKey,
+                desktopId: effectiveDesktopId,
+                display: display,
+                iconName: fallbackIcon,
+                launcherId: launcherId,
+                modelRow: appEntry ? appEntry.row : -1,
+                fallbackCommand: fallbackCommand
+            })
+        }
+    }
+
+    function rebuildSearchModel() {
+        searchRebuildQueued = false
+        searchResultsModel.clear()
+
+        var rawQ = root.query.trim().toLowerCase()
+        if (rawQ.length === 0) {
+            return
+        }
+        var tokens = rawQ.split(/\s+/).filter(function(t) { return t.length > 0 })
+        function matchesAllTokens(haystack) {
+            var h = haystack.toLowerCase()
+            for (var t = 0; t < tokens.length; t++) {
+                if (h.indexOf(tokens[t]) === -1) {
+                    return false
+                }
+            }
+            return true
+        }
+
+        var seenKeys = ({})
+
+        // 1. Settings catalog matches (guaranteed instant settings results)
+        for (var s = 0; s < settingsCatalog.length; s++) {
+            var cat = settingsCatalog[s]
+            var sHay = cat.name + " " + cat.kcm + " " + cat.keywords
+            if (matchesAllTokens(sHay)) {
+                seenKeys[cat.name.toLowerCase()] = true
+                searchResultsModel.append({
+                    kind: "setting",
+                    display: cat.name,
+                    subtitle: "Settings",
+                    iconName: cat.icon,
+                    appRow: -1,
+                    runnerRow: -1,
+                    command: "systemsettings " + cat.kcm,
+                    favoriteId: "",
+                    url: ""
+                })
+            }
+        }
+
+        // 2. Direct All Apps substring matches
+        for (var a = 0; a < allAppsProbe.count; a++) {
+            var appItem = allAppsProbe.itemAt(a)
+            if (!appItem) {
+                continue
+            }
+            var appHay = appItem.displayName + " " + appItem.desc + " " + normalizeDesktopId(appItem.favId)
+            if (matchesAllTokens(appHay)) {
+                var aKey = appItem.displayName.toLowerCase()
+                seenKeys[aKey] = true
+                searchResultsModel.append({
+                    kind: "app",
+                    display: appItem.displayName,
+                    subtitle: appItem.desc,
+                    iconName: (typeof appItem.iconVal === "string") ? appItem.iconVal : "application-x-executable",
+                    appRow: a,
+                    runnerRow: -1,
+                    command: "",
+                    favoriteId: appItem.favId,
+                    url: appItem.appUrl
+                })
+            }
+        }
+
+        // 3. Live KRunner matches (calculator, files, sessions, additional KCMs)
+        for (var r = 0; r < runnerProbe.count; r++) {
+            var runItem = runnerProbe.itemAt(r)
+            if (!runItem || runItem.displayName.length === 0) {
+                continue
+            }
+            var rKey = runItem.displayName.toLowerCase()
+            if (seenKeys[rKey]) {
+                continue
+            }
+            seenKeys[rKey] = true
+            searchResultsModel.append({
+                kind: "runner",
+                display: runItem.displayName,
+                subtitle: runItem.desc,
+                iconName: (typeof runItem.iconVal === "string") ? runItem.iconVal : "application-x-executable",
+                appRow: -1,
+                runnerRow: r,
+                command: "",
+                favoriteId: runItem.favId,
+                url: runItem.appUrl
+            })
+        }
+    }
+
+    function matchesPinEntry(pinEntry, targetId) {
+        var pNorm = normalizeDesktopId(pinEntry)
+        var tNorm = normalizeDesktopId(targetId)
+        if (pNorm === tNorm) {
+            return true
+        }
+        if (pNorm === "preferred://browser" && (tNorm === defaultBrowserDesktopId || stemDesktopId(tNorm) === stemDesktopId(defaultBrowserDesktopId))) {
+            return true
+        }
+        if (tNorm === "preferred://browser" && (pNorm === defaultBrowserDesktopId || stemDesktopId(pNorm) === stemDesktopId(defaultBrowserDesktopId))) {
+            return true
+        }
+        return stemDesktopId(pNorm).length > 0 && stemDesktopId(pNorm) === stemDesktopId(tNorm)
+    }
+
+    function isPinned(rawId) {
+        var norm = normalizeDesktopId(rawId)
+        if (norm.length === 0 || !Plasmoid.configuration || !Plasmoid.configuration.pinned) {
+            return false
+        }
+        var cur = Plasmoid.configuration.pinned
+        for (var i = 0; i < cur.length; i++) {
+            if (matchesPinEntry(cur[i], norm)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    function togglePin(rawId) {
+        var norm = normalizeDesktopId(rawId)
+        if (norm.length === 0 || !Plasmoid.configuration) {
+            return
+        }
+        var cur = Plasmoid.configuration.pinned ? Array.prototype.slice.call(Plasmoid.configuration.pinned) : []
+        var nextList = []
+        var removed = false
+        for (var i = 0; i < cur.length; i++) {
+            var item = String(cur[i]).trim()
+            if (item.length === 0) {
+                continue
+            }
+            if (matchesPinEntry(item, norm)) {
+                removed = true
+            } else {
+                nextList.push(item)
+            }
+        }
+        if (!removed) {
+            nextList.push(norm)
+        }
+        Plasmoid.configuration.pinned = nextList
+        schedulePinnedRebuild()
     }
 
     function findAllAppsModel() {
@@ -160,19 +673,44 @@ PlasmoidItem {
         root.expanded = false
     }
 
+    function launchPinned(row) {
+        if (row < 0 || row >= pinnedModel.count) {
+            return
+        }
+        var item = pinnedModel.get(row)
+        if (root.allAppsModel && item.modelRow >= 0 && item.modelRow < root.allAppsModel.count) {
+            root.allAppsModel.trigger(item.modelRow, "", null)
+            root.expanded = false
+            return
+        }
+        if (item.fallbackCommand && item.fallbackCommand.length > 0) {
+            root.expanded = false
+            shell.run(item.fallbackCommand)
+        } else if (item.desktopId && item.desktopId.length > 0) {
+            root.expanded = false
+            shell.run("gtk-launch " + shellQuote(item.desktopId))
+        }
+    }
+
+    function launchSearchResult(row) {
+        if (row < 0 || row >= searchResultsModel.count) {
+            return
+        }
+        var item = searchResultsModel.get(row)
+        if (item.kind === "app" && item.appRow >= 0) {
+            root.launch(root.allAppsModel, item.appRow)
+        } else if (item.kind === "setting" && item.command.length > 0) {
+            root.expanded = false
+            shell.run(item.command)
+        } else if (item.kind === "runner" && item.runnerRow >= 0) {
+            root.launch(root.runnerResultsModel, item.runnerRow)
+        }
+    }
+
     function resolveIds(favIdProp, urlProp) {
         var rawFav = (favIdProp !== undefined && favIdProp !== null) ? String(favIdProp) : ""
         var rawUrl = (urlProp !== undefined && urlProp !== null) ? String(urlProp) : ""
-        var favId = rawFav.length > 0 ? rawFav : rawUrl
-
-        if (favId.indexOf("applications:") === 0) {
-            favId = favId.slice("applications:".length)
-        } else if (favId.indexOf("file://") === 0 && favId.endsWith(".desktop")) {
-            var slash = favId.lastIndexOf("/")
-            if (slash >= 0) {
-                favId = favId.slice(slash + 1)
-            }
-        }
+        var favId = normalizeDesktopId(rawFav.length > 0 ? rawFav : rawUrl)
 
         var launcherId = ""
         if (favId.indexOf("preferred://") === 0) {
@@ -184,10 +722,7 @@ PlasmoidItem {
         } else if (rawUrl.indexOf("applications:") === 0) {
             launcherId = rawUrl
         } else if (rawUrl.indexOf("file://") === 0 && rawUrl.endsWith(".desktop")) {
-            var uSlash = rawUrl.lastIndexOf("/")
-            if (uSlash >= 0) {
-                launcherId = "applications:" + rawUrl.slice(uSlash + 1)
-            }
+            launcherId = "applications:" + normalizeDesktopId(rawUrl)
         }
 
         return { favId: favId, launcherId: launcherId }
@@ -235,7 +770,7 @@ PlasmoidItem {
     compactRepresentation: MouseArea {
         id: button
         hoverEnabled: true
-        onClicked: root.expanded = !root.expanded
+        onClicked: () => { root.expanded = !root.expanded }
         Layout.minimumWidth: Math.max(height * 1.25, 32)
         Rectangle {
             anchors.fill: parent
@@ -283,15 +818,18 @@ PlasmoidItem {
             }
         }
 
-        function openContextMenu(sourceItem, mx, my, favIdProp, urlProp) {
+        function openContextMenu(sourceItem, mx, my, favIdProp, urlProp, configKeyProp) {
+            var rawKey = (configKeyProp !== undefined && configKeyProp !== null) ? String(configKeyProp) : ""
             var ids = root.resolveIds(favIdProp, urlProp)
-            if (!ids.favId && !ids.launcherId) {
+            var favId = rawKey.indexOf("preferred://") === 0 ? rawKey : (ids.favId.length > 0 ? ids.favId : rawKey)
+            var launcherId = rawKey.indexOf("preferred://") === 0 ? rawKey : ids.launcherId
+            if (!favId && !launcherId) {
                 return
             }
-            contextMenu.favId = ids.favId
-            contextMenu.launcherId = ids.launcherId
-            contextMenu.isPinned = ids.favId.length > 0 && appsRoot.favoritesModel !== null
-                                   && appsRoot.favoritesModel.isFavorite(ids.favId)
+            contextMenu.favId = favId
+            contextMenu.launcherId = launcherId
+            contextMenu.isPinned = favId.length > 0 && root.isPinned(favId)
+
             var pt = sourceItem.mapToItem(fullRoot, mx, my)
             var menuW = Math.max(196, contextMenu.implicitWidth)
             var menuH = Math.max(84, contextMenu.implicitHeight)
@@ -414,13 +952,13 @@ PlasmoidItem {
                         }
 
                         Keys.onReturnPressed: {
-                            if (root.query.length > 0 && results.model && results.model.count > 0) {
-                                root.launch(results.model, 0)
+                            if (root.query.length > 0 && results.count > 0) {
+                                root.launchSearchResult(0)
                             }
                         }
                         Keys.onEnterPressed: {
-                            if (root.query.length > 0 && results.model && results.model.count > 0) {
-                                root.launch(results.model, 0)
+                            if (root.query.length > 0 && results.count > 0) {
+                                root.launchSearchResult(0)
                             }
                         }
                         Keys.onDownPressed: {
@@ -501,7 +1039,7 @@ PlasmoidItem {
                         Layout.fillHeight: true
                         readonly property int activeView: root.query.length > 0 ? 2 : (root.showAll ? 1 : 0)
 
-                        // Pinned grid
+                        // Pinned grid (driven directly by Plasmoid.configuration.pinned)
                         GridView {
                             id: pinned
                             anchors.fill: parent
@@ -521,13 +1059,17 @@ PlasmoidItem {
                             clip: true
                             cellWidth: width / 6
                             cellHeight: Kirigami.Units.gridUnit * 5.4
-                            model: appsRoot.favoritesModel
+                            model: pinnedModel
                             delegate: Tile {
                                 id: pinnedTile
                                 width: pinned.cellWidth
                                 height: pinned.cellHeight
-                                onActivated: root.launch(appsRoot.favoritesModel, index)
-                                onContextRequested: (mx, my) => fullRoot.openContextMenu(pinnedTile, mx, my, model.favoriteId, model.url)
+                                labelText: model.display
+                                iconSource: (model.modelRow >= 0 && allAppsProbe.itemAt(model.modelRow))
+                                    ? allAppsProbe.itemAt(model.modelRow).iconVal
+                                    : model.iconName
+                                onActivated: root.launchPinned(index)
+                                onContextRequested: (mx, my) => fullRoot.openContextMenu(pinnedTile, mx, my, model.desktopId, model.launcherId, model.configKey)
                             }
                         }
 
@@ -549,17 +1091,19 @@ PlasmoidItem {
                                 NumberAnimation { duration: root.animShort; easing.type: Easing.OutCubic }
                             }
                             clip: true
-                            model: (appsRoot.count > 0 && root.appsRevision >= 0) ? root.findAllAppsModel() : null
+                            model: root.allAppsModel
                             delegate: Row_ {
                                 id: allAppRow
                                 width: allApps.width
+                                labelText: model.display || ""
+                                iconSource: model.decoration
                                 onActivated: root.launch(allApps.model, index)
-                                onContextRequested: (mx, my) => fullRoot.openContextMenu(allAppRow, mx, my, model.favoriteId, model.url)
+                                onContextRequested: (mx, my) => fullRoot.openContextMenu(allAppRow, mx, my, model.favoriteId, model.url, "")
                             }
                             QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
                         }
 
-                        // Search results
+                        // Search results (Settings catalog + All Apps + KRunner)
                         ListView {
                             id: results
                             anchors.fill: parent
@@ -577,22 +1121,34 @@ PlasmoidItem {
                                 NumberAnimation { duration: root.animShort; easing.type: Easing.OutCubic }
                             }
                             clip: true
-                            model: (runner.count > 0 && root.runnerRevision >= 0) ? root.findRunnerResultsModel() : null
-                            onModelChanged: currentIndex = count > 0 ? 0 : -1
+                            model: searchResultsModel
                             onCountChanged: {
                                 if (count > 0 && (currentIndex < 0 || currentIndex >= count)) {
                                     currentIndex = 0
+                                } else if (count === 0) {
+                                    currentIndex = -1
                                 }
                             }
                             delegate: Row_ {
                                 id: resultRow
                                 width: results.width
                                 highlighted: ListView.isCurrentItem || (results.currentIndex < 0 && index === 0)
-                                onActivated: root.launch(results.model, index)
-                                onContextRequested: (mx, my) => fullRoot.openContextMenu(resultRow, mx, my, model.favoriteId, model.url)
+                                labelText: model.display
+                                subText: model.kind === "setting" ? "Settings" : model.subtitle
+                                iconSource: (model.kind === "app" && model.appRow >= 0 && allAppsProbe.itemAt(model.appRow))
+                                    ? allAppsProbe.itemAt(model.appRow).iconVal
+                                    : ((model.kind === "runner" && model.runnerRow >= 0 && runnerProbe.itemAt(model.runnerRow))
+                                        ? runnerProbe.itemAt(model.runnerRow).iconVal
+                                        : model.iconName)
+                                onActivated: root.launchSearchResult(index)
+                                onContextRequested: (mx, my) => {
+                                    if (model.favoriteId.length > 0 || model.url.length > 0) {
+                                        fullRoot.openContextMenu(resultRow, mx, my, model.favoriteId, model.url, "")
+                                    }
+                                }
                             }
-                            Keys.onReturnPressed: root.launch(results.model, currentIndex >= 0 ? currentIndex : 0)
-                            Keys.onEnterPressed: root.launch(results.model, currentIndex >= 0 ? currentIndex : 0)
+                            Keys.onReturnPressed: root.launchSearchResult(currentIndex >= 0 ? currentIndex : 0)
+                            Keys.onEnterPressed: root.launchSearchResult(currentIndex >= 0 ? currentIndex : 0)
                             Keys.onUpPressed: {
                                 if (currentIndex <= 0) {
                                     search.forceActiveFocus()
@@ -649,11 +1205,12 @@ PlasmoidItem {
             }
         }
 
-        // Right-click context menu (rendered in-scene so Start menu popup stays open)
+        // Right-click context menu (Popup.Window ensures it never gets clipped on Wayland)
         QQC2.Menu {
             id: contextMenu
             parent: fullRoot
-            popupType: QQC2.Popup.Item
+            popupType: QQC2.Popup.Window
+            modal: true
             padding: 4
 
             property string favId: ""
@@ -670,17 +1227,8 @@ PlasmoidItem {
 
             StartMenuActionItem {
                 text: contextMenu.isPinned ? "Unpin from Start" : "Pin to Start"
-                enabled: contextMenu.favId.length > 0 && appsRoot.favoritesModel !== null
-                onTriggered: {
-                    if (!appsRoot.favoritesModel || contextMenu.favId.length === 0) {
-                        return
-                    }
-                    if (contextMenu.isPinned) {
-                        appsRoot.favoritesModel.removeFavorite(contextMenu.favId)
-                    } else {
-                        appsRoot.favoritesModel.addFavorite(contextMenu.favId)
-                    }
-                }
+                enabled: contextMenu.favId.length > 0
+                onTriggered: root.togglePin(contextMenu.favId)
             }
 
             StartMenuActionItem {
@@ -735,15 +1283,22 @@ PlasmoidItem {
         signal activated()
         signal contextRequested(real mx, real my)
 
+        property string labelText: ""
+        property var iconSource: "application-x-executable"
         property real enterOffset: 0
 
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: true
 
-        onClicked: (mouse) => {
+        onPressed: (mouse) => {
             if (mouse.button === Qt.RightButton) {
+                mouse.accepted = true
                 contextRequested(mouse.x, mouse.y)
-            } else if (mouse.button === Qt.LeftButton) {
+            }
+        }
+
+        onClicked: (mouse) => {
+            if (mouse.button === Qt.LeftButton) {
                 activated()
             }
         }
@@ -829,7 +1384,7 @@ PlasmoidItem {
                 width: parent.width - 8
                 spacing: 6
                 Kirigami.Icon {
-                    source: model.decoration
+                    source: tile.iconSource
                     Layout.alignment: Qt.AlignHCenter
                     Layout.preferredWidth: Kirigami.Units.iconSizes.large
                     Layout.preferredHeight: Layout.preferredWidth
@@ -840,7 +1395,7 @@ PlasmoidItem {
                     }
                 }
                 PC3.Label {
-                    text: model.display
+                    text: tile.labelText
                     color: root.textPrimary
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
@@ -856,6 +1411,9 @@ PlasmoidItem {
         signal activated()
         signal contextRequested(real mx, real my)
         property bool highlighted: false
+        property string labelText: ""
+        property string subText: ""
+        property var iconSource: "application-x-executable"
         height: Kirigami.Units.gridUnit * 2.4
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: true
@@ -866,10 +1424,15 @@ PlasmoidItem {
             NumberAnimation { duration: root.animShort; easing.type: Easing.OutCubic }
         }
 
-        onClicked: (mouse) => {
+        onPressed: (mouse) => {
             if (mouse.button === Qt.RightButton) {
+                mouse.accepted = true
                 contextRequested(mouse.x, mouse.y)
-            } else if (mouse.button === Qt.LeftButton) {
+            }
+        }
+
+        onClicked: (mouse) => {
+            if (mouse.button === Qt.LeftButton) {
                 activated()
             }
         }
@@ -899,15 +1462,21 @@ PlasmoidItem {
                 NumberAnimation { duration: root.animFast; easing.type: Easing.OutCubic }
             }
             Kirigami.Icon {
-                source: model.decoration
+                source: row.iconSource
                 Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
                 Layout.preferredHeight: Layout.preferredWidth
             }
             PC3.Label {
-                text: model.display
+                text: row.labelText
                 color: root.textPrimary
                 Layout.fillWidth: true
                 elide: Text.ElideRight
+            }
+            PC3.Label {
+                visible: row.subText.length > 0
+                text: row.subText
+                color: root.textMuted
+                font.pixelSize: Kirigami.Units.gridUnit * 0.68
             }
         }
     }

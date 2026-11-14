@@ -22,12 +22,13 @@ PlasmoidItem {
     readonly property int animMed: animationsEnabled ? Math.max(60, Math.round(Kirigami.Units.shortDuration * 1.1)) : 0
     readonly property int animLong: animationsEnabled ? Kirigami.Units.longDuration : 0
 
-    readonly property int dockHeight: root.height > 0 ? root.height : root.implicitHeight
+    readonly property int targetDockHeight: Math.round(Kirigami.Units.gridUnit * 4.2)
+    readonly property int layoutDockHeight: Math.max(48, targetDockHeight - 4)
     readonly property int restBottomMargin: 9
     readonly property int bounceMax: animationsEnabled ? 7 : 0
     readonly property int hoverLiftMax: animationsEnabled ? 3 : 0
     readonly property int verticalHeadroom: restBottomMargin + hoverLiftMax + bounceMax + 6
-    readonly property int maxAllowedIconSide: Math.max(24, Math.floor(dockHeight - verticalHeadroom))
+    readonly property int maxAllowedIconSide: Math.max(24, Math.floor(layoutDockHeight - verticalHeadroom))
     readonly property real maxHoverScale: animationsEnabled ? 1.32 : 1.0
     readonly property int baseIconSize: Math.max(24, Math.min(Math.round(Kirigami.Units.gridUnit * 2.1), Math.floor(maxAllowedIconSide / maxHoverScale)))
     readonly property int slotWidth: baseIconSize + 12
@@ -40,8 +41,9 @@ PlasmoidItem {
     Layout.fillHeight: true
     Layout.minimumWidth: dockRow.implicitWidth + 20
     Layout.preferredWidth: dockRow.implicitWidth + 20
+    Layout.preferredHeight: targetDockHeight
     implicitWidth: dockRow.implicitWidth + 20
-    implicitHeight: Math.round(Kirigami.Units.gridUnit * 4.2)
+    implicitHeight: targetDockHeight
 
     TaskManager.VirtualDesktopInfo {
         id: virtualDesktopInfo
@@ -214,7 +216,7 @@ PlasmoidItem {
     Row {
         id: dockRow
         anchors.centerIn: parent
-        height: root.dockHeight
+        height: root.height > 0 ? root.height : root.targetDockHeight
         spacing: 6
 
         HoverHandler {
