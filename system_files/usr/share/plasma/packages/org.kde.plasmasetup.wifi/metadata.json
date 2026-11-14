@@ -1,0 +1,13 @@
+{
+    "KPackageStructure": "KDE/PlasmaSetup",
+    "KPlugin": {
+        "Description": "Connect to a Wi-Fi network.",
+        "Id": "org.kde.plasmasetup.wifi",
+        "License": "GPL-2.0+",
+        "Name": "Wi-Fi Network",
+        "Version": "1.0"
+    },
+    "NoDisplay": true,
+    "X-KDE-ParentApp": "org.kde.plasmasetup",
+    "X-KDE-Weight": 50
+}

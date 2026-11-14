@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Cloud Drives
+Comment=Connect OneDrive and Google Drive
+Exec=systemsettings kcm_oneclick_cloud
+Icon=oneclick-cloud-drive
+Categories=Settings;System;
+Keywords=cloud;onedrive;google drive;files;storage;

@@ -1,0 +1,13 @@
+{
+    "KPackageStructure": "KDE/PlasmaSetup",
+    "KPlugin": {
+        "Description": "Choose the system language for OneClick OS.",
+        "Id": "org.kde.plasmasetup.language",
+        "License": "LGPL-2.1-or-later",
+        "Name": "Language",
+        "Version": "1.0"
+    },
+    "NoDisplay": true,
+    "X-KDE-ParentApp": "org.kde.plasmasetup",
+    "X-KDE-Weight": 0
+}

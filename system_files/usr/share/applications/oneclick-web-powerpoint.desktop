@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=PowerPoint on the web
+Comment=Open PowerPoint presentations in your browser
+Exec=xdg-open https://www.office.com/launch/powerpoint
+Icon=oneclick-web-powerpoint
+Categories=Office;
+Keywords=powerpoint;office;presentation;slides;pptx;
+StartupNotify=true
+NoDisplay=false

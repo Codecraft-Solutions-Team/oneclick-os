@@ -1,0 +1,13 @@
+{
+    "KPackageStructure": "KDE/PlasmaSetup",
+    "KPlugin": {
+        "Description": "Set your time zone.",
+        "Id": "org.kde.plasmasetup.time",
+        "License": "LGPL-2.0-or-later",
+        "Name": "Time and Date",
+        "Version": "1.0"
+    },
+    "NoDisplay": true,
+    "X-KDE-ParentApp": "org.kde.plasmasetup",
+    "X-KDE-Weight": 40
+}

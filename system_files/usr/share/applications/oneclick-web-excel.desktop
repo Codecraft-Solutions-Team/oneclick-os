@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Excel on the web
+Comment=Open Excel spreadsheets in your browser
+Exec=xdg-open https://www.office.com/launch/excel
+Icon=oneclick-web-excel
+Categories=Office;
+Keywords=excel;office;spreadsheet;xlsx;
+StartupNotify=true
+NoDisplay=false

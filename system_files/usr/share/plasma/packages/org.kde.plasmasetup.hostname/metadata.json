@@ -1,0 +1,13 @@
+{
+    "KPackageStructure": "KDE/PlasmaSetup",
+    "KPlugin": {
+        "Description": "Set a name for this PC.",
+        "Id": "org.kde.plasmasetup.hostname",
+        "License": "LGPL-2.1-or-later",
+        "Name": "PC Name",
+        "Version": "1.0"
+    },
+    "NoDisplay": true,
+    "X-KDE-ParentApp": "org.kde.plasmasetup",
+    "X-KDE-Weight": 30
+}

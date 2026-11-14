@@ -1,0 +1,12 @@
+{
+    "KPackageStructure": "KDE/PlasmaSetup",
+    "KPlugin": {
+        "Description": "Choose your keyboard layout and variant.",
+        "Id": "org.kde.plasmasetup.keyboard",
+        "License": "LGPL-2.1-or-later",
+        "Name": "Keyboard Layout",
+        "Version": "1.0"
+    },
+    "X-KDE-ParentApp": "org.kde.plasmasetup",
+    "X-KDE-Weight": 5
+}

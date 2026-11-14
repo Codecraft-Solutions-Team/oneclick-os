@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Word on the web
+Comment=Open Word documents in your browser
+Exec=xdg-open https://www.office.com/launch/word
+Icon=oneclick-web-word
+Categories=Office;
+Keywords=word;office;document;docx;
+StartupNotify=true
+NoDisplay=false

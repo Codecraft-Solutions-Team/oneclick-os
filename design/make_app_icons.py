@@ -217,6 +217,38 @@ ICONS = {
   <rect x="6" y="18" width="52" height="36" rx="5" fill="#dc2626"/>
   <rect x="6" y="30" width="52" height="5" fill="#7f1d1d"/>
   <rect x="27" y="27" width="10" height="11" rx="2" fill="#fde047"/>""",
+
+    # Word on the web: blue document page with horizontal lines.
+    "word": """
+  <path d="M14 6h26l12 12v36a4 4 0 0 1-4 4H14a4 4 0 0 1-4-4V10a4 4 0 0 1 4-4z" fill="#2563eb"/>
+  <path d="M40 6l12 12H44a4 4 0 0 1-4-4z" fill="#1d4ed8"/>
+  <path d="M14 6h4v52h-4a4 4 0 0 1-4-4V10a4 4 0 0 1 4-4z" fill="#1d4ed8"/>
+  <path d="M23 27h21M23 36h21M23 45h14" stroke="#f8fafc" stroke-width="3.8" stroke-linecap="round"/>""",
+
+    # Excel on the web: green spreadsheet grid.
+    "excel": """
+  <rect x="8" y="8" width="48" height="48" rx="6" fill="#16a34a"/>
+  <path d="M8 14a6 6 0 0 1 6-6h36a6 6 0 0 1 6 6v8H8z" fill="#15803d"/>
+  <rect x="14" y="26" width="16" height="9" rx="1.5" fill="#f8fafc"/>
+  <rect x="34" y="26" width="16" height="9" rx="1.5" fill="#bbf7d0"/>
+  <rect x="14" y="39" width="16" height="9" rx="1.5" fill="#bbf7d0"/>
+  <rect x="34" y="39" width="16" height="9" rx="1.5" fill="#f8fafc"/>""",
+
+    # PowerPoint on the web: orange presentation slide with chart and lines.
+    "powerpoint": """
+  <rect x="6" y="10" width="52" height="38" rx="5" fill="#ea580c"/>
+  <path d="M6 15a5 5 0 0 1 5-5h42a5 5 0 0 1 5 5v5H6z" fill="#c2410c"/>
+  <path d="M24 54h16M32 48v6" stroke="#c2410c" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="22" cy="34" r="7" fill="#fff7ed"/>
+  <path d="M22 34v-7a7 7 0 0 1 7 7z" fill="#fdba74"/>
+  <path d="M35 29h14M35 35h11M35 41h8" stroke="#fff7ed" stroke-width="3.2" stroke-linecap="round"/>""",
+
+    # LibreOffice suite: folded document page with teal band and lines.
+    "libreoffice": """
+  <path d="M14 6h26l12 12v36a4 4 0 0 1-4 4H14a4 4 0 0 1-4-4V10a4 4 0 0 1 4-4z" fill="#f1f5f9"/>
+  <path d="M40 6l12 12H44a4 4 0 0 1-4-4z" fill="#94a3b8"/>
+  <rect x="16" y="23" width="30" height="6" rx="2" fill="#0f766e"/>
+  <path d="M16 36h28M16 44h20" stroke="#334155" stroke-width="3.5" stroke-linecap="round"/>""",
 }
 
 # Every icon name an app might use, mapped to our drawing.
@@ -252,6 +284,20 @@ NAMES = {
     "favourites": ["bookmarks", "bookmarks-symbolic", "favorites", "favorite", "starred"],
     "internet": ["applications-internet", "applications-internet-symbolic", "applications-network"],
     "utilities": ["applications-utilities", "applications-utilities-symbolic", "applications-accessories"],
+    "word": ["oneclick-web-word"],
+    "excel": ["oneclick-web-excel"],
+    "powerpoint": ["oneclick-web-powerpoint"],
+    "libreoffice": [
+        "org.libreoffice.LibreOffice",
+        "org.libreoffice.LibreOffice.writer",
+        "org.libreoffice.LibreOffice.calc",
+        "org.libreoffice.LibreOffice.impress",
+        "org.libreoffice.LibreOffice.draw",
+        "libreoffice-writer",
+        "libreoffice-calc",
+        "libreoffice-impress",
+        "libreoffice-startcenter",
+    ],
 }
 
 os.makedirs(OUT, exist_ok=True)

@@ -78,6 +78,10 @@ SETTINGS = {
                 ["oneclick-taskbar"]),
     "windowsapps": ("#2563eb", f'<rect x="15" y="15" width="14" height="14" rx="2" {F}/><rect x="35" y="15" width="14" height="14" rx="2" {F}/><rect x="15" y="35" width="14" height="14" rx="2" {F}/><rect x="35" y="35" width="14" height="14" rx="2" {F}/>',
                     ["oneclick-windows-apps"]),
+    "clouddrives": ("#0284c7",
+                    f'<circle cx="37" cy="24" r="8" fill="#0ea5e9"/><circle cx="46" cy="29" r="6" fill="#0ea5e9"/><rect x="26" y="25" width="26" height="10" rx="5" fill="#0ea5e9"/>'
+                    f'<circle cx="23" cy="34" r="7" {F}/><circle cx="33" cy="30" r="9.5" {F}/><circle cx="42" cy="36" r="6" {F}/><rect x="16" y="34" width="32" height="12" rx="6" {F}/>',
+                    ["oneclick-cloud-drive", "oneclick-cloud-drives"]),
 }
 
 # --- Tray icons: 22px grid, drawn in the taskbar's text colour ---------------------------
