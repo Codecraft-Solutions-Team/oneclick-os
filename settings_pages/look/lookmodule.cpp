@@ -135,3 +135,6 @@ void LookModule::startApply(const QString &look)
 
     m_applyProcess->start(APPLY_BIN, {look});
 }
+
+#include "lookmodule.moc"
+
