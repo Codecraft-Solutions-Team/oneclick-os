@@ -8,19 +8,21 @@ Summary of Tasks 1–8 from [BRIEF-02-system-features.md](../BRIEF-02-system-fea
 
 1. **Make the 3 GHCR container packages Public**:
    - `ghcr.io/codecraft-solutions-team/oneclick-os`, `ghcr.io/codecraft-solutions-team/oneclick-os-nvidia`, and `ghcr.io/codecraft-solutions-team/oneclick-os-preview` currently return `unauthorized: authentication required` (`401`) on anonymous `skopeo inspect` and pulls (whereas the legacy `ghcr.io/bandarasasen183-creator/oneclick-os-preview` package is public).
-   - Switch those 3 packages to **Public** under GitHub Organization/Package settings so `bootc upgrade`, `bootc switch`, and `./tools/preview/setup-vm.sh` can pull images without credentials.
+   - Switch those 3 packages to **Public** under GitHub Organization/Package settings so `bootc upgrade`, `bootc switch`, and preview VM upgrades or disk image conversions (`~/OneClickVM/disk.qcow2`) can pull images without credentials.
 2. **Google Drive OAuth Client ID for KDE Online Accounts (`kio-gdrive`)**:
    - Upstream Fedora's `/usr/share/accounts/providers/kde/google.provider` uses KDE's shared OAuth Client ID (`317066460457-...`), which Google frequently blocks with `"This app is blocked"`.
    - `kcm_oneclick_cloud` already ships a working **Direct Folder Sync** (`rclone` + `fuse3` mount) workaround so users are not blocked. If native KDE Online Accounts Google sign-in is also desired, register a verified OneClick OS OAuth Desktop Client ID in Google Cloud Console.
-3. **Rebuild the local Preview VM disk (`./tools/preview/setup-vm.sh`)**:
-   - Once `ghcr.io/codecraft-solutions-team/oneclick-os-preview` is public, re-run `./tools/preview/setup-vm.sh` so the preview VM base disk (currently running `44.20261113.0`) boots with the newly compiled C++ `.so` KCM plugins (`kcm_oneclick_taskbar.so`, `kcm_oneclick_windows.so`, `kcm_oneclick_cloud.so`, `kcm_oneclick_look.so`), updated `kcm_oneclick_update.so`, `/usr/libexec/oneclick-crash-dialog`, `/usr/libexec/oneclick-plasma-welcome`, and `/usr/share/plymouth/themes/oneclick/oneclick.script` natively inside immutable `/usr` rather than staged QML/user-directory overrides.
+3. **Update the local Preview VM (`bootc upgrade` or rebuilt `~/OneClickVM/disk.qcow2`)**:
+   - Once `ghcr.io/codecraft-solutions-team/oneclick-os-preview` is public and finishes publishing, either upgrade the running VM via `sudo bootc upgrade && sudo systemctl reboot` or regenerate `~/OneClickVM/disk.qcow2` and restart QEMU with `mac/run-preview.sh --reset` so the preview VM (currently running `44.20261113.0`) boots with the newly compiled C++ `.so` KCM plugins (`kcm_oneclick_taskbar.so`, `kcm_oneclick_windows.so`, `kcm_oneclick_cloud.so`, `kcm_oneclick_look.so`), updated `kcm_oneclick_update.so`, `/usr/libexec/oneclick-crash-dialog`, `/usr/libexec/oneclick-plasma-welcome`, and `/usr/share/plymouth/themes/oneclick/oneclick.script` natively inside immutable `/usr` rather than staged QML/user-directory overrides.
 
 ---
 
 ## Overview of Builds & Commits
 
-- **CI image builds**: Prior green GitHub Actions run `43648170468` built all three variants (`oneclick-os`, `oneclick-os-nvidia`, and `oneclick-os-preview`) with `bootc container lint` passing.
-- **Commit sequence on `main`**: `7408ac7`, `ff8e267`, `f3ee834`, `b24064a`, `bf8c384`, `3cfa958`, `96abb3c`, `ed6143c`, `d2c83a3`, `665f6b3`. (Commit `0197b98` on `website/` / `functions/` by the owner/Claude was left untouched.)
+- **CI image builds**:
+  - **Prior full-green run `43648170468`** (`0197b98` on top of `96abb3c`): `oneclick-os` (`6m5s`), `oneclick-os-nvidia` (`5m40s`), and `oneclick-os-preview` (`26m53s`) all passed green with `bootc container lint` passing.
+  - **Latest image-building run `43653809791`** (`665f6b3`, covering `ed6143c`, `d2c83a3`, and `665f6b3`): `oneclick-os` passed in `5m7s`; `oneclick-os-nvidia` passed in `7m13s`; `oneclick-os-preview` (initial attempt failed at `1m7s`, exit `125`, transient `cdn01.quay.io` `unexpected EOF` on `kinoite:44`) is currently running in rerun job `132629979137` (`gh run rerun 43653809791 --failed` — final green duration pending while CI completes).
+- **Commit sequence on `main`**: `7408ac7`, `ff8e267`, `f3ee834`, `b24064a`, `bf8c384`, `3cfa958`, `96abb3c`, `ed6143c`, `d2c83a3`, `665f6b3`, `067b835` (`docs(reports): add BRIEF-02 overnight build and verification report`). (Commit `0197b98` on `website/` / `functions/` by the owner/Claude was left untouched; `.md`-only commits such as `067b835` and report updates are skipped by `.github/workflows/build.yml` `paths-ignore`, so `665f6b3` is the latest commit that triggers image builds.)
 - **Image documentation**: [docs/WHAT-IS-IN-THE-IMAGE.md](../../WHAT-IS-IN-THE-IMAGE.md) documents every customization applied on top of Bazzite and Fedora Kinoite.
 
 ---
@@ -32,11 +34,15 @@ Summary of Tasks 1–8 from [BRIEF-02-system-features.md](../BRIEF-02-system-fea
 - **Verification status**:
   - **Seen on screen**:
     - [task1-startmenu-pinned.png](shots/task1-startmenu-pinned.png): All 13 default pins rendered in a 6x3 grid alongside the search field, All apps switch, and bottom footer (user name + Lock, Sign out, Restart, Shut down).
-    - [task1-startmenu-allapps.png](shots/task1-startmenu-allapps.png): Alphabetical All apps list toggle.
-    - [task1-startmenu-context.png](shots/task1-startmenu-context.png): Unclipped `"Unpin from Start"` / `"Add to taskbar"` right-click menu over Files. *Known Wayland defect:* `QQC2.Popup.Window` places `contextMenu` at the bottom-left `(9, 1489)` of `fullRoot` instead of next to the clicked tile because Wayland ignores manual `x`/`y` coordinates on unanchored sub-windows.
+    - [task1-startmenu-allapps.png](shots/task1-startmenu-allapps.png): Earlier pre-`d2c83a3` capture (`00:35` clock, 6-pin layout) showing the pointer hovering on the `"All apps ->"` toggle button above the Pinned grid (not the opened alphabetical list).
+    - [task1-startmenu-context.png](shots/task1-startmenu-context.png): Unclipped `"Unpin from Start"` / `"Add to taskbar"` menu shown while right-clicking Files (rendered unclipped at bottom-left of Start menu on Wayland).
     - [task1-startmenu-search.png](shots/task1-startmenu-search.png): Typing `"display"` shows `"Display & Monitor"` (`Settings`) highlighted at top alongside `"Display Configuration"`, `"Touchscreen"`, `"Login Screen"`, `"X-Server"`, `"Wayland"`, `"OpenGL (GLX)"`, and `"EDID"`. *Minor runtime note:* async KRunner queries take ~5–7 s to finish rendering under software `llvmpipe`.
     - `journalctl` after fixes showed `0` `KAStatsFavoritesModel` errors and `0` `Parameter "expanded"` warnings.
-  - **Written, not seen**: Immutable `/usr/share/plasma/` packaging on a freshly booted image without staged `~/.local/share` overrides (Meta shortcut + panel default depend on first-boot desktop layout initialization).
+  - **Written, not seen**:
+    - The opened alphabetical A–Z `"All apps"` view (`root.allAppsModel` + `"Back"` toggle button in `org.oneclick.startmenu/contents/ui/main.qml`; `allAppsProbe=26` was observed in diagnostic logs, while the opened list view itself was not captured on screen).
+    - Immutable `/usr/share/plasma/` packaging on a freshly booted image without staged `~/.local/share` overrides (Meta shortcut + panel default depend on first-boot desktop layout initialization).
+  - **Not done and why**:
+    - The opened A–Z `"All apps"` view after clicking `"All apps ->"` was not re-captured on screen after `d2c83a3` (`task1-startmenu-allapps.png` captured only the hover state before click); additionally, on Wayland, `contextMenu` (`popupType: QQC2.Popup.Window`) renders at bottom-left `(9, 1489)` of `fullRoot` instead of right next to the right-clicked tile because KWin Wayland ignores manual `x`/`y` positioning on unanchored popup windows.
 - **Simplest choices & files**:
   - Replaced broken `KAStatsFavoritesModel` with `Plasmoid.configuration.pinned` in `system_files/usr/share/plasma/plasmoids/org.oneclick.startmenu/contents/ui/main.qml`, backed by `settingsCatalog` (15 plain-named Settings entries) merged ahead of `allAppsProbe` and `Kicker.RunnerModel`, with default pins in `contents/config/main.xml` and `system_files/usr/share/plasma/look-and-feel/org.oneclick.desktop/contents/layouts/org.kde.plasma.desktop-layout.js`.
 - **How others do it**:
@@ -48,11 +54,13 @@ Summary of Tasks 1–8 from [BRIEF-02-system-features.md](../BRIEF-02-system-fea
 
 - **Verification status**:
   - **Seen on screen**:
-    - **About This PC**: [task2-about-real.png](shots/task2-about-real.png) (before fix, leaking `44` / `Kinoite`) -> [task2-about-fixed.png](shots/task2-about-fixed.png) (live `systemsettings kcm_about-distro` after fix displaying `OneClick OS 0.1`, `Desktop`, GitHub URL, circular teal logo, zero `44` and zero `Kinoite`).
-    - **Update**: [task2-update-real.png](shots/task2-update-real.png) and [task2-update-real-done.png](shots/task2-update-real-done.png) (live `systemsettings kcm_oneclick_update` checking for updates cleanly), plus [task2-update-qml-fixed.png](shots/task2-update-qml-fixed.png) (updated QML with `"rollingback"` rollback state).
+    - **About This PC**: [task2-about-real.png](shots/task2-about-real.png) (before fix, leaking `44` / `Kinoite`) -> [task2-about-fixed.png](shots/task2-about-fixed.png) (live `systemsettings kcm_about-distro` after fix displaying `OneClick OS 0.1`, `Desktop`, GitHub URL, circular teal logo, zero `44` and zero `Kinoite`; note that the `systemsettings` window title and sidebar still display upstream `"About this System"` and the `"Software"` section still lists `"KDE Plasma Version"` because `kcm_about-distro.so` 6.8.2 does not support hiding that section).
+    - **Update**: [task2-update-real.png](shots/task2-update-real.png) and [task2-update-real-done.png](shots/task2-update-real-done.png) (live `systemsettings kcm_oneclick_update` checking for updates cleanly), plus [task2-update-qml-fixed.png](shots/task2-update-qml-fixed.png) (`qmlscene` showing `settings_pages/update/ui/main.qml` in its idle `"You're up to date"` state rather than live download or rollback execution).
     - **Taskbar & Windows Apps**: [task2-taskbar-qml-shown2.png](shots/task2-taskbar-qml-shown2.png) (`qmlscene` check of `settings_pages/taskbar/ui/main.qml`) and [task2-windows-qml.png](shots/task2-windows-qml.png) (`qmlscene` check of `settings_pages/windows/ui/main.qml`).
   - **Written, not seen**:
-    - Compiled C++ `.so` KCM plugins (`kcm_oneclick_taskbar.so`, `kcm_oneclick_windows.so`) and the updated `kcm_oneclick_update.so` rollback C++ backend (`"rollingback"` state + pkexec fallback) loaded natively inside `systemsettings` on the VM (built in CI image workflow; VM disk `44.20261113.0` awaits rebuild).
+    - Compiled C++ `.so` KCM plugins (`kcm_oneclick_taskbar.so`, `kcm_oneclick_windows.so`) and the updated `kcm_oneclick_update.so` rollback C++ backend (`"rollingback"` state + `pkexec` fallback) loaded natively inside `systemsettings` on the VM (built in CI image workflow; VM disk `44.20261113.0` awaits rebuild).
+  - **Not done and why**:
+    - Live update download progress (megabytes and time remaining) and live `"Undo last update"` (`"rollingback"`) execution were not seen on screen because `ghcr.io/codecraft-solutions-team/oneclick-os-preview` returns `401 Unauthorized` on anonymous pulls (*Needs the owner #1*) and the preview VM has only one deployment (`bootc rollback` requires a previous deployment). Native `.so` loading of `kcm_oneclick_taskbar.so`, `kcm_oneclick_windows.so`, and updated `kcm_oneclick_update.so` inside `systemsettings` awaits rebuilding the VM disk (*Needs the owner #3*).
 - **Simplest choices & files**:
   - Replaced standalone `oneclick-taskbar` kdialog script with `settings_pages/taskbar/` (`kcm_oneclick_taskbar`, `org.kde.plasmashell` D-Bus `evaluateScript`) and `settings_pages/windows/` (`kcm_oneclick_windows`), kept `/usr/bin/oneclick-open-windows-app` solely as the desktop `.exe`/`.msi` MIME handler, removed dead `/usr/bin/oneclick-update-helper`, updated `system_files/etc/xdg/kcm-about-distrorc` + `build_files/build.sh` (`Name`, `Version`, `Variant`, `UseOSReleaseVersion=false`, `ShowBuild=false`, `LogoPath`, `Website`, `LOGO="oneclick-logo"`), and added the dedicated `"rollingback"` state + clean `pkexec` handling in `settings_pages/update/`.
 - **How others do it**:
@@ -64,10 +72,12 @@ Summary of Tasks 1–8 from [BRIEF-02-system-features.md](../BRIEF-02-system-fea
 
 - **Verification status**:
   - **Seen on screen**:
-    - [task3-lockscreen.png](shots/task3-lockscreen.png): `kscreenlocker_greet --testing` displaying the crisp, unblurred wallpaper (`/usr/share/wallpapers/OneClick/contents/images/3840x2160.jpg`), clock, password prompt, and bottom-centered `/usr/share/oneclick/wordmark.svg` (verified by pixel crop `y=1630..1762`).
+    - [task3-lockscreen.png](shots/task3-lockscreen.png): `kscreenlocker_greet --testing` visibly renders ONLY the crisp, unblurred wallpaper (`/usr/share/wallpapers/OneClick/contents/images/3840x2160.jpg`), cursor, and bottom-centered `/usr/share/oneclick/wordmark.svg` (verified by pixel crop `y=1630..1762`). Neither the clock nor the password prompt is visible in that screenshot.
     - [desktop-44.20261113.png](shots/desktop-44.20261113.png): Default OneClick desktop wallpaper.
   - **Written, not seen**:
-    - First-boot `plasmalogin` login greeter rendered before auto-login (`system_files/etc/plasmalogin.conf`, `system_files/etc/plasmalogin.conf.d/10-oneclick.conf`, `/usr/lib/plasmalogin/defaults.conf`, `/usr/share/oneclick/plasmalogin/`, and `/usr/lib/tmpfiles.d/oneclick-plasmalogin.conf`, with `build.sh` guarding `/var/lib/plasmalogin` writes via `systemd-tmpfiles` and removing `oneclick-plasmalogin.conf` when `! id plasmalogin`).
+    - `plasmalogin` login greeter configuration (`system_files/etc/plasmalogin.conf`, `system_files/etc/plasmalogin.conf.d/10-oneclick.conf`, `/usr/lib/plasmalogin/defaults.conf`, `/usr/share/oneclick/plasmalogin/`, and `/usr/lib/tmpfiles.d/oneclick-plasmalogin.conf`, with `build.sh` guarding `/var/lib/plasmalogin` writes via `systemd-tmpfiles` and removing `oneclick-plasmalogin.conf` when `! id plasmalogin`).
+  - **Not done and why**:
+    - A custom QML greeter replacement for `plasma-login-manager` was not written (only `plasmalogin.conf` / `10-oneclick.conf` with `Theme=org.oneclick.desktop`, `Blur=false`, shared wallpaper, and `tmpfiles.d` config seeding were configured); the pre-login screen itself was not seen on screen because the preview VM auto-logs in as `tester`; and the clock / password prompt card did not appear in the `kscreenlocker_greet --testing` capture (`task3-lockscreen.png`).
 - **Simplest choices & files**:
   - Created original geometric wallpaper `org.oneclick.wallpaper` (`#0a1020` navy, `#22304d` rings, `#2dd4bf` teal accent), shared it across `kscreenlockerrc` and `plasmalogin` with `Blur=false`, and moved `/var/lib/plasmalogin/.config` creation out of `RUN` into `tmpfiles.d` so `bootc container lint` stays clean.
 - **How others do it**:
@@ -78,13 +88,15 @@ Summary of Tasks 1–8 from [BRIEF-02-system-features.md](../BRIEF-02-system-fea
 ### Task 4 — First-run setup and welcome tour
 
 - **Verification status**:
-  - **Seen on screen**: All 4 custom Welcome Tour pages rendered in live `plasma-welcome`:
+  - **Seen on screen**: All 4 custom Welcome Tour QML pages rendered standalone in `OneClick QML Preview` (`qmlscene`):
     - [task4-welcome-where.png](shots/task4-welcome-where.png) (`01-WhereThingsAre.qml`)
     - [task4-welcome-apps.png](shots/task4-welcome-apps.png) (`02-YourApps.qml` — clicked `"Gamer"` preset and verified 6 starter-app checkboxes selected)
     - [task4-welcome-updates.png](shots/task4-welcome-updates.png) (`03-Updates.qml`)
     - [task4-welcome-windows.png](shots/task4-welcome-windows.png) (`04-ComingFromWindows.qml`)
   - **Written, not seen**:
-    - Pre-user `plasma-setup` OOBE pages (`system_files/usr/share/plasma/packages/org.kde.plasmasetup.{language,keyboard,account,time,wifi}` rebranded in OneClick colours; redundant `hostname` and `prepare` removed in `build.sh`, with `finished` "Completed!" preserved untouched), `/usr/bin/plasma-welcome` wrapper (`build.sh` removing `plasma-welcome-fedora` and `01-EnableExtraRepos.qml` while wrapping `/usr/libexec/oneclick-plasma-welcome`), and autostart `/usr/bin/oneclick-install-chosen-apps` installing user-chosen Flathub apps on login.
+    - Live `/usr/bin/plasma-welcome` launch on boot and inside-app verification that `plasma-welcome-fedora` / upstream `01-EnableExtraRepos.qml` are absent (`/usr/bin/plasma-welcome` wrapper and `system_files/usr/share/plasma/plasma-welcome/extra-pages/*.qml` are baked in the newly built images, not yet on the `44.20261113.0` VM disk); pre-user `plasma-setup` OOBE pages (`system_files/usr/share/plasma/packages/org.kde.plasmasetup.{language,keyboard,account,time,wifi}` rebranded in OneClick colours; redundant `hostname` and `prepare` removed in `build.sh`, with `finished` "Completed!" preserved untouched); and autostart `/usr/bin/oneclick-install-chosen-apps` installing user-chosen Flathub apps on login.
+  - **Not done and why**:
+    - Live `/usr/bin/plasma-welcome` launch on boot, inside-app verification that `plasma-welcome-fedora` / upstream `01-EnableExtraRepos.qml` are absent, pre-user `plasma-setup` first-boot wizard execution, and first-login Flatpak installation via `/usr/bin/oneclick-install-chosen-apps` were not seen on screen because `/usr/bin/plasma-welcome` wrapper and `extra-pages/*.qml` are baked in the newly built images rather than on the `44.20261113.0` VM disk (which also boots straight into the pre-created `tester` session and awaits `bootc upgrade` / rebuilt `~/OneClickVM/disk.qcow2`, *Needs the owner #3*).
 - **Simplest choices & files**:
   - Overrode `plasma-setup` pages directly under `system_files/usr/share/plasma/packages/`, wrapped `/usr/bin/plasma-welcome` to load only OneClick pages, and reused XDG autostart (`system_files/etc/xdg/autostart/oneclick-install-chosen-apps.desktop`) + `/usr/bin/oneclick-install-chosen-apps` (exiting non-zero on failure so selections are not prematurely discarded).
 - **How others do it**:
@@ -98,7 +110,9 @@ Summary of Tasks 1–8 from [BRIEF-02-system-features.md](../BRIEF-02-system-fea
   - **Seen on screen**:
     - [task5-cloud-qml.png](shots/task5-cloud-qml.png): `qmlscene` visual verification of `settings_pages/cloud/ui/main.qml` showing OneDrive, Google Drive, and Direct Folder Sync via `rclone` / `fuse3`.
   - **Written, not seen**:
-    - Compiled `kcm_oneclick_cloud.so` plugin inside `systemsettings`; preinstalled LibreOffice queue (`system_files/etc/oneclick/apps.list` with `org.libreoffice.LibreOffice`), default Office MIME associations (`system_files/etc/xdg/mimeapps.list`), Office web app launchers (`system_files/usr/share/applications/oneclick-web-{word,excel,powerpoint}.desktop`) with SVG icons (`design/make_app_icons.py`), and `oneclick-cloud-drives.desktop`. Live Google Drive Online Accounts (`kio-gdrive`) requires a OneClick OAuth Client ID (see *Needs the owner*), whereas `rclone` Direct Folder Sync requires no upstream KDE OAuth credentials.
+    - Compiled `kcm_oneclick_cloud.so` plugin inside `systemsettings`; preinstalled LibreOffice queue (`system_files/etc/oneclick/apps.list` with `org.libreoffice.LibreOffice`), default Office MIME associations (`system_files/etc/xdg/mimeapps.list`), Office web app launchers (`system_files/usr/share/applications/oneclick-web-{word,excel,powerpoint}.desktop`) with SVG icons (`design/make_app_icons.py`), and `oneclick-cloud-drives.desktop`.
+  - **Not done and why**:
+    - Live Google Drive sign-in via KDE Online Accounts (`kio-gdrive`) is blocked by upstream KDE's shared Google OAuth Client ID returning `"This app is blocked"` until a OneClick OS OAuth Client ID is registered (*Needs the owner #2*); live interactive OneDrive/Google Drive `rclone` OAuth browser sign-in + FUSE mount in Files/Dolphin, first-login LibreOffice Flatpak installation (`apps.list`), and launching the Office web-app `.desktop` shortcuts from the Start menu were not executed end-to-end on the live VM.
 - **Simplest choices & files**:
   - Bundled `rclone` + `fuse3` in `build.sh` paired with user systemd mount units inside `settings_pages/cloud/cloudmodule.cpp` (giving zero-terminal folder mounts in Files for both OneDrive and Google Drive alongside Online Accounts detection), queued `org.libreoffice.LibreOffice` via `apps.list`, and mapped Office document types in `mimeapps.list`.
 - **How others do it**:
@@ -112,7 +126,9 @@ Summary of Tasks 1–8 from [BRIEF-02-system-features.md](../BRIEF-02-system-fea
   - **Seen on screen**:
     - [task6-crash-dialog.png](shots/task6-crash-dialog.png): `CrashDialog.qml` rendered live on KWin Wayland in the VM showing `"Text Editor closed unexpectedly."`, expanded `h=460` details area with `"Details for developers"`, `"Copy Details"`, `"Close"`, and `"Reopen"`, verified across 3 expand/collapse cycles (`WAYLAND_CRASH_DIALOG_ALL_CYCLES_PASSED` with `grab=1100x1012`, `details=436x232`, zero clipping, and zero QML warnings).
   - **Written, not seen**:
-    - Compiled `/usr/libexec/oneclick-crash-dialog` binary + `drkonqi`/`drkonqi-coredump-gui` symlinks in `build.sh`, and `build_files/boot/plymouth/oneclick.script` (`Plymouth.GetMode()` holding static `frame-093.png` with `#000000` background on `shutdown`/`reboot`/`suspend`/`resume` inside the rebuilt dracut initramfs, which requires booting the rebuilt CI image).
+    - Compiled `/usr/libexec/oneclick-crash-dialog` binary + `drkonqi`/`drkonqi-coredump-gui` symlinks in `build.sh`, and `build_files/boot/plymouth/oneclick.script` (`Plymouth.GetMode()` holding static `frame-093.png` with `#000000` background on `shutdown`/`reboot`/`suspend`/`resume` inside the rebuilt dracut initramfs).
+  - **Not done and why**:
+    - Triggering a real `systemd-coredump` -> `/usr/libexec/drkonqi` -> `/usr/libexec/oneclick-crash-dialog` crash handoff and viewing the static Plymouth shutdown screen (`oneclick.script` in dracut initramfs) on VM shutdown were not seen on screen because the compiled binary symlinks and rebuilt initramfs require booting the rebuilt preview VM disk (*Needs the owner #3*).
 - **Simplest choices & files**:
   - Built standalone QtQuick executable `settings_pages/crash/` (`oneclick-crash-dialog`) instead of patching DrKonqi, kept top-level `Window` resize synchronous (`minimumHeight = maximumHeight = height = targetHeight`) to avoid Wayland `xdg_toplevel` configure races, and added static mode branching in `build_files/boot/plymouth/oneclick.script`.
 - **How others do it**:
@@ -126,7 +142,9 @@ Summary of Tasks 1–8 from [BRIEF-02-system-features.md](../BRIEF-02-system-fea
   - **Seen on screen**:
     - Exercised indirectly while testing `org.oneclick.startmenu`, Welcome Tour pages, and Mode switch in the VM (`journalctl` showed zero KWin/Plasma errors and zero `dockHeight`/animation warnings in `plasmashell` after `ed6143c` + `d2c83a3`). Motion curves themselves are code-verified and runtime-exercised rather than captured as video, since screenshots are still frames.
   - **Written, not seen**:
-    - KWin open/close/minimize/slide defaults in `build_files/build.sh` (`kwinrc`, `klaunchrc`, `plasmanotifyrc`, `AnimationDurationFactor=1`), plus QML hover/press/stagger transitions across `org.oneclick.startmenu`, `org.oneclick.dock`, `org.kde.plasmasetup.*`, `plasma-welcome/extra-pages/*.qml`, and all 5 `settings_pages/*/ui/main.qml` files scaled via `Kirigami.Units.longDuration` / `shortDuration` (disabled when `AnimationDurationFactor=0` / reduced motion). `CrashDialog.qml` intentionally omits height/opacity animations so Wayland `Qt.Dialog` resizing remains deterministic.
+    - KWin open/close/minimize/slide defaults in `build_files/build.sh` (`kwinrc`, `klaunchrc`, `plasmanotifyrc`, `AnimationDurationFactor=1`), plus QML hover/press/stagger transitions across `org.oneclick.startmenu`, `org.oneclick.dock`, `org.kde.plasmasetup.*`, `system_files/usr/share/plasma/plasma-welcome/extra-pages/*.qml`, and all 5 `settings_pages/*/ui/main.qml` files scaled via `Kirigami.Units.longDuration` / `shortDuration` (disabled when `AnimationDurationFactor=0` / reduced motion). `CrashDialog.qml` intentionally omits height/opacity animations so Wayland `Qt.Dialog` resizing remains deterministic.
+  - **Not done and why**:
+    - Video or frame-sequence capture of KWin window open/close/minimize animations, taskbar icon bounce, right-edge notification slide-in, and toggling `"Reduce motion"` (`AnimationDurationFactor=0`) was not recorded (only static PNG screenshots were captured, and `build.sh`'s `kwinrc`/`klaunchrc`/`plasmanotifyrc` defaults await the rebuilt VM disk).
 - **Simplest choices & files**:
   - Tuned built-in KWin C++ effects (`scale`, `squash`, `maximize`, `slidingpopups`) in `build.sh` with `wobblywindowsEnabled=false` and `glideEnabled=false`, and gated QML `Behavior`s on `Kirigami.Units.longDuration > 0`.
 - **How others do it**:
@@ -139,9 +157,11 @@ Summary of Tasks 1–8 from [BRIEF-02-system-features.md](../BRIEF-02-system-fea
 - **Verification status**:
   - **Seen on screen**:
     - [task8-look-qml.png](shots/task8-look-qml.png): `qmlscene` visual verification of `settings_pages/look/ui/main.qml` rendering the two preview cards ("Windows style" and "Mac style").
-    - [task8-mac-mode.png](shots/task8-mac-mode.png): Live `oneclick-apply-look mac` in the VM showing Dolphin with original `OneClickMac` left traffic-light buttons, top `OneClickGlass` translucent menu bar/panel, and centered magnifying bottom `org.oneclick.dock`. Switched cleanly back to `windows` mode afterwards with `0` `dockHeight`/binding-loop/QML errors in `journalctl`.
+    - [task8-mac-mode.png](shots/task8-mac-mode.png): Live `oneclick-apply-look mac` in the VM showing Dolphin with original `OneClickMac` left traffic-light buttons, top `OneClickGlass` translucent menu bar/panel, and centered floating bottom `org.oneclick.dock`. Switched cleanly back to `windows` mode afterwards with `0` `dockHeight`/binding-loop/QML errors in `journalctl`.
   - **Written, not seen**:
-    - Compiled `kcm_oneclick_look.so` plugin inside `systemsettings` awaiting VM disk rebuild (`oneclick-apply-look --config-only` was also verified in isolation via `kreadconfig6`).
+    - Pointer hover magnification on `org.oneclick.dock` (static `task8-mac-mode.png` capture was unhovered), plus compiled `kcm_oneclick_look.so` plugin inside `systemsettings` awaiting VM upgrade/rebuild (`oneclick-apply-look --config-only` was also verified in isolation via `kreadconfig6`).
+  - **Not done and why**:
+    - Clicking the mode cards inside the compiled `systemsettings kcm_oneclick_look` C++ module was not seen on screen because `kcm_oneclick_look.so` awaits the rebuilt VM disk (*Needs the owner #3*; the QML card layout was verified via `qmlscene` in `task8-look-qml.png`, and the live mode switch was verified on screen via `/usr/bin/oneclick-apply-look mac` in `task8-mac-mode.png`).
 - **Simplest choices & files**:
   - Added asset generators `design/make_glass_theme.py` and `design/make_mac_window_frame.py`, original assets in `system_files/usr/share/aurorae/themes/OneClickMac/`, `system_files/usr/share/plasma/desktoptheme/OneClickGlass/`, `system_files/usr/share/plasma/look-and-feel/org.oneclick.mac/`, `system_files/usr/share/plasma/plasmoids/org.oneclick.dock/`, CLI switcher `system_files/usr/bin/oneclick-apply-look` (`windows` | `mac` | `--status` | `--config-only`, detecting `org.kde.kwin.aurorae.v2` dynamically and applying overrides after `plasma-apply-lookandfeel --resetLayout`), and `settings_pages/look/` (`kcm_oneclick_look`). Zero macOS trademarks or Apple artwork are used.
 - **How others do it**:
