@@ -1,0 +1,250 @@
+#!/usr/bin/bash
+# Installs chosen Flathub apps cleanly without opening a terminal window.
+# Supports both autostart mode (reading ~/.config/oneclick/apps.list and
+# /etc/oneclick/apps.list) and direct CLI mode (passing app IDs as arguments).
+set -uo pipefail
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/oneclick"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/oneclick"
+USER_LIST="${CONFIG_DIR}/apps.list"
+ETC_LIST="${ONECLICK_ETC_APPS_LIST:-/etc/oneclick/apps.list}"
+ETC_DONE_MARKER="${STATE_DIR}/etc-apps-done"
+LOCK_FILE="${XDG_RUNTIME_DIR:-/tmp}/oneclick-install-chosen-apps-${UID:-$(id -u)}.lock"
+DIALOG_TITLE="Installing Apps — OneClick OS"
+FLATHUB_REPO_URL="https://dl.flathub.org/repo/flathub.flatpakrepo"
+
+exec 9>"${LOCK_FILE}"
+flock 9
+
+friendly_name() {
+    local app_id="$1"
+    case "${app_id}" in
+        org.libreoffice.LibreOffice) echo "LibreOffice" ;;
+        com.spotify.Client) echo "Spotify" ;;
+        com.discordapp.Discord) echo "Discord" ;;
+        org.videolan.VLC) echo "VLC" ;;
+        com.valvesoftware.Steam) echo "Steam" ;;
+        net.lutris.Lutris) echo "Lutris" ;;
+        org.mozilla.firefox) echo "Firefox" ;;
+        com.google.Chrome) echo "Google Chrome" ;;
+        com.brave.Browser) echo "Brave" ;;
+        org.gimp.GIMP) echo "GIMP" ;;
+        org.kde.kdenlive) echo "Kdenlive" ;;
+        com.obsproject.Studio) echo "OBS Studio" ;;
+        *)
+            local tail="${app_id##*.}"
+            echo "${tail}"
+            ;;
+    esac
+}
+
+is_valid_app_id() {
+    [[ "$1" =~ ^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+$ ]]
+}
+
+read_list_file() {
+    local path="$1"
+    [[ -f "${path}" ]] || return 0
+    local line
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+        line="${line%%#*}"
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
+        [[ -n "${line}" ]] || continue
+        if is_valid_app_id "${line}"; then
+            printf '%s\n' "${line}"
+        fi
+    done < "${path}"
+}
+
+from_files_only=false
+cli_apps=()
+for arg in "$@"; do
+    case "${arg}" in
+        --from-files)
+            from_files_only=true
+            ;;
+        -h|--help)
+            echo "Usage: oneclick-install-chosen-apps [--from-files | FLATHUB_ID...]"
+            exit 0
+            ;;
+        *)
+            trimmed="${arg#"${arg%%[![:space:]]*}"}"
+            trimmed="${trimmed%"${trimmed##*[![:space:]]}"}"
+            if is_valid_app_id "${trimmed}"; then
+                cli_apps+=("${trimmed}")
+            fi
+            ;;
+    esac
+done
+
+# When app IDs are passed directly (e.g. from the Welcome Tour), persist them
+# into ~/.config/oneclick/apps.list first so interrupted runs remain queued.
+if [[ "${from_files_only}" == false && ${#cli_apps[@]} -gt 0 ]]; then
+    mkdir -p "${CONFIG_DIR}"
+    {
+        read_list_file "${USER_LIST}"
+        printf '%s\n' "${cli_apps[@]}"
+    } | awk '!seen[$0]++' > "${USER_LIST}.tmp"
+    mv -f "${USER_LIST}.tmp" "${USER_LIST}"
+fi
+
+raw_apps=()
+used_etc=false
+
+if [[ -f "${USER_LIST}" ]]; then
+    while IFS= read -r id; do
+        [[ -n "${id}" ]] && raw_apps+=("${id}")
+    done < <(read_list_file "${USER_LIST}")
+fi
+
+if [[ ${#cli_apps[@]} -eq 0 && -f "${ETC_LIST}" && ! -f "${ETC_DONE_MARKER}" ]]; then
+    used_etc=true
+    while IFS= read -r id; do
+        [[ -n "${id}" ]] && raw_apps+=("${id}")
+    done < <(read_list_file "${ETC_LIST}")
+fi
+
+# Deduplicate while preserving order
+requested_apps=()
+if [[ ${#raw_apps[@]} -gt 0 ]]; then
+    while IFS= read -r id; do
+        [[ -n "${id}" ]] && requested_apps+=("${id}")
+    done < <(printf '%s\n' "${raw_apps[@]}" | awk '!seen[$0]++')
+fi
+
+mark_lists_done() {
+    rm -f "${USER_LIST}"
+    if [[ "${used_etc}" == true ]]; then
+        mkdir -p "${STATE_DIR}"
+        : > "${ETC_DONE_MARKER}"
+        if [[ -w "${ETC_LIST}" ]]; then
+            rm -f "${ETC_LIST}" || true
+        fi
+    fi
+}
+
+if [[ ${#requested_apps[@]} -eq 0 ]]; then
+    mark_lists_done
+    exit 0
+fi
+
+# Skip apps already installed (both user and system installations).
+installed_apps=""
+if command -v flatpak >/dev/null 2>&1; then
+    installed_apps="$(flatpak list --app --columns=application 2>/dev/null || true)"
+fi
+
+pending_apps=()
+for app_id in "${requested_apps[@]}"; do
+    if ! printf '%s\n' "${installed_apps}" | grep -Fxq "${app_id}"; then
+        pending_apps+=("${app_id}")
+    fi
+done
+
+if [[ ${#pending_apps[@]} -eq 0 ]]; then
+    mark_lists_done
+    exit 0
+fi
+
+# Ensure a non-privileged flathub user remote is available.
+if ! flatpak remotes --user --columns=name 2>/dev/null | grep -Fxq "flathub"; then
+    flatpak remote-add --if-not-exists --user flathub "${FLATHUB_REPO_URL}" >/dev/null 2>&1 || true
+fi
+
+remote_scope="--user"
+if ! flatpak remotes --user --columns=name 2>/dev/null | grep -Fxq "flathub"; then
+    if flatpak remotes --system --columns=name 2>/dev/null | grep -Fxq "flathub"; then
+        remote_scope="--system"
+    fi
+fi
+
+total=${#pending_apps[@]}
+dbus_svc=""
+dbus_path=""
+
+cleanup_progress() {
+    if [[ -n "${dbus_svc}" && -n "${dbus_path}" ]] && command -v qdbus-qt6 >/dev/null 2>&1; then
+        qdbus-qt6 "${dbus_svc}" "${dbus_path}" org.kde.kdialog.ProgressDialog.close >/dev/null 2>&1 || true
+    fi
+}
+trap cleanup_progress EXIT
+
+if command -v kdialog >/dev/null 2>&1 && [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+    dbus_ref="$(kdialog --title "${DIALOG_TITLE}" --progressbar "Installing your selected apps..." "${total}" 2>/dev/null || true)"
+    if [[ -n "${dbus_ref}" ]]; then
+        read -r dbus_svc dbus_path <<< "${dbus_ref}"
+        if [[ -n "${dbus_svc}" && -n "${dbus_path}" ]] && command -v qdbus-qt6 >/dev/null 2>&1; then
+            qdbus-qt6 "${dbus_svc}" "${dbus_path}" org.kde.kdialog.ProgressDialog.showCancelButton true >/dev/null 2>&1 || true
+        fi
+    fi
+fi
+
+progress_set_label() {
+    local text="$1"
+    if [[ -n "${dbus_svc}" && -n "${dbus_path}" ]] && command -v qdbus-qt6 >/dev/null 2>&1; then
+        qdbus-qt6 "${dbus_svc}" "${dbus_path}" org.kde.kdialog.ProgressDialog.setLabelText "${text}" >/dev/null 2>&1 || true
+    fi
+}
+
+progress_set_value() {
+    local val="$1"
+    if [[ -n "${dbus_svc}" && -n "${dbus_path}" ]] && command -v qdbus-qt6 >/dev/null 2>&1; then
+        qdbus-qt6 "${dbus_svc}" "${dbus_path}" org.freedesktop.DBus.Properties.Set org.kde.kdialog.ProgressDialog value "${val}" >/dev/null 2>&1 || true
+    fi
+}
+
+progress_was_cancelled() {
+    if [[ -n "${dbus_svc}" && -n "${dbus_path}" ]] && command -v qdbus-qt6 >/dev/null 2>&1; then
+        local cancelled
+        cancelled="$(qdbus-qt6 "${dbus_svc}" "${dbus_path}" org.kde.kdialog.ProgressDialog.wasCancelled 2>/dev/null || echo "false")"
+        [[ "${cancelled}" == "true" ]]
+        return $?
+    fi
+    return 1
+}
+
+failed=0
+cancelled=false
+step=0
+failed_or_remaining=()
+
+for idx in "${!pending_apps[@]}"; do
+    app_id="${pending_apps[$idx]}"
+    if progress_was_cancelled; then
+        cancelled=true
+        for ((rem=idx; rem<total; rem++)); do
+            failed_or_remaining+=("${pending_apps[$rem]}")
+        done
+        break
+    fi
+
+    next_step=$((step + 1))
+    name="$(friendly_name "${app_id}")"
+    progress_set_label "Installing ${name} (${next_step} of ${total})..."
+
+    if ! flatpak install -y --noninteractive "${remote_scope}" flathub "${app_id}" >/dev/null 2>&1; then
+        failed=$((failed + 1))
+        failed_or_remaining+=("${app_id}")
+    fi
+
+    step="${next_step}"
+    progress_set_value "${step}"
+done
+
+if [[ "${cancelled}" == false && ${failed} -gt 0 ]]; then
+    if command -v kdialog >/dev/null 2>&1 && [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+        kdialog --title "${DIALOG_TITLE}" --passivepopup "Some apps could not be installed right now. Check your internet connection and try again from Apps." 8 >/dev/null 2>&1 || true
+    fi
+fi
+
+if [[ ${#cli_apps[@]} -gt 0 && ( ${failed} -gt 0 || "${cancelled}" == true ) ]]; then
+    # Keep failed or cancelled explicit selections queued so a retry or next sign-in can finish them.
+    mkdir -p "${CONFIG_DIR}"
+    printf '%s\n' "${failed_or_remaining[@]}" > "${USER_LIST}.tmp"
+    mv -f "${USER_LIST}.tmp" "${USER_LIST}"
+    exit 1
+fi
+
+mark_lists_done
+exit 0

@@ -8,9 +8,11 @@ include(KDEInstallDirs)
 include(KDECMakeSettings)
 include(KDECompilerSettings NO_POLICY_SCOPE)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Network)
 find_package(KF6 REQUIRED COMPONENTS KCMUtils CoreAddons)
 
 add_subdirectory(update)
 add_subdirectory(taskbar)
 add_subdirectory(windows)
+add_subdirectory(cloud)
+add_subdirectory(crash)

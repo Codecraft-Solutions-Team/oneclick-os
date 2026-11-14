@@ -1,15 +1,24 @@
-# OneClick start-up animation. Plays the frames once at 30 frames a second, then holds the
-# finished word until the desktop is ready. Also draws the password prompt for encrypted disks.
+# OneClick start-up and power-off splash. Plays the writing animation on boot, and holds the
+# finished OneClick mark statically on shutdown, reboot, suspend, and resume.
 
 FRAMES = 94;
 Window.SetBackgroundTopColor(0, 0, 0);
 Window.SetBackgroundBottomColor(0, 0, 0);
 
-for (i = 0; i < FRAMES; i++) {
-    name = "" + i;
-    if (i < 100) name = "0" + name;
-    if (i < 10) name = "0" + name;
-    frame[i] = Image("frame-" + name + ".png");
+mode = Plymouth.GetMode();
+is_static_mode = (mode == "shutdown" || mode == "reboot" || mode == "suspend" || mode == "resume");
+
+if (is_static_mode) {
+    frame[0] = Image("frame-093.png");
+    frame_count = 1;
+} else {
+    for (i = 0; i < FRAMES; i++) {
+        name = "" + i;
+        if (i < 100) name = "0" + name;
+        if (i < 10) name = "0" + name;
+        frame[i] = Image("frame-" + name + ".png");
+    }
+    frame_count = FRAMES;
 }
 
 # Never wider than 60% of the screen, so it fits small displays.
@@ -19,22 +28,25 @@ if (frame[0].GetWidth() > max_width) scale = max_width / frame[0].GetWidth();
 width = frame[0].GetWidth() * scale;
 height = frame[0].GetHeight() * scale;
 if (scale != 1) {
-    for (i = 0; i < FRAMES; i++) frame[i] = frame[i].Scale(width, height);
+    for (i = 0; i < frame_count; i++) frame[i] = frame[i].Scale(width, height);
 }
 
 word = Sprite();
 word.SetX(Window.GetX() + Window.GetWidth() / 2 - width / 2);
 word.SetY(Window.GetY() + Window.GetHeight() / 2 - height / 2);
+word.SetImage(frame[0]);
 
-tick = 0;
-fun refresh() {
-    # Plymouth calls this 50 times a second; the animation was drawn at 30.
-    index = Math.Int(tick * 0.6);
-    if (index >= FRAMES) index = FRAMES - 1;
-    word.SetImage(frame[index]);
-    tick++;
+if (!is_static_mode) {
+    tick = 0;
+    fun refresh() {
+        # Plymouth calls this 50 times a second; the animation was drawn at 30.
+        index = Math.Int(tick * 0.6);
+        if (index >= FRAMES) index = FRAMES - 1;
+        word.SetImage(frame[index]);
+        tick++;
+    }
+    Plymouth.SetRefreshFunction(refresh);
 }
-Plymouth.SetRefreshFunction(refresh);
 
 # ---- password prompt (encrypted disks) ----
 prompt_sprite = Sprite();

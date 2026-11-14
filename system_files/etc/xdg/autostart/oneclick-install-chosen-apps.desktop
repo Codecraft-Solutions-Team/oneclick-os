@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Install Selected Apps
+Comment=Installs selected apps automatically after sign-in
+Exec=/usr/bin/oneclick-install-chosen-apps
+Icon=system-software-install
+NoDisplay=true

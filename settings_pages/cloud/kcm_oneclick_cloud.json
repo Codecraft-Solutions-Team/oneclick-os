@@ -1,0 +1,10 @@
+{
+    "KPlugin": {
+        "Name": "Cloud Drives",
+        "Description": "Connect OneDrive and Google Drive so they appear in Files",
+        "Icon": "oneclick-cloud-drive"
+    },
+    "X-KDE-Keywords": "cloud,onedrive,google drive,files,sync,storage,backup",
+    "X-KDE-System-Settings-Parent-Category": "network",
+    "X-KDE-Weight": 1
+}

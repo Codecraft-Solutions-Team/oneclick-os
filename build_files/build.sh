@@ -17,9 +17,13 @@ setcfg() {
     fi
 }
 
+### Remove Fedora-branded onboarding add-ons before laying down OneClick files
+dnf5 remove -y plasma-welcome-fedora || true
+rm -f /usr/share/plasma/plasma-welcome/extra-pages/01-EnableExtraRepos.qml
+
 ### System files (handlers, default app associations, icons, boot settings)
 cp -avf /ctx/system_files/. /
-chmod 755 /usr/bin/oneclick-open-windows-app /usr/bin/oneclick-update /usr/libexec/oneclick-update-helper
+chmod 755 /usr/bin/oneclick-open-windows-app /usr/bin/oneclick-update /usr/bin/oneclick-install-chosen-apps /usr/libexec/oneclick-update-helper
 
 ### Branding
 # Only the display name and links change. ID and ID_LIKE stay as the base image set
@@ -56,11 +60,66 @@ if [[ -f /usr/etc/xdg/kcm-about-distrorc ]]; then
     cp -f /etc/xdg/kcm-about-distrorc /usr/etc/xdg/kcm-about-distrorc
 fi
 
-### Welcome window (shown once after first login)
+### Welcome window and first-time setup
+rm -f /usr/share/plasma/plasma-welcome/extra-pages/01-EnableExtraRepos.qml
 setcfg plasma-welcomerc General IntroText "Welcome to ${BRAND_NAME}. Everything is already set up: your drivers, your apps and your games library are ready to go. This short tour shows you where things are."
 setcfg plasma-welcomerc General IntroIcon "file:///usr/share/pixmaps/oneclick-logo.svg"
 setcfg plasma-welcomerc General IntroIconLink "${BRAND_URL}"
 setcfg plasma-welcomerc General IntroIconCaption "${BRAND_NAME}"
+setcfg plasma-welcomerc General ShowUpdatePage false
+
+if [[ ! -f /usr/share/plasma/plasma-welcome/intro-customization.desktop ]] || grep -qi 'fedora' /usr/share/plasma/plasma-welcome/intro-customization.desktop; then
+    mkdir -p /usr/share/plasma/plasma-welcome
+    cat > /usr/share/plasma/plasma-welcome/intro-customization.desktop <<INTRO
+[Desktop Entry]
+Type=Application
+Name=Welcome to ${BRAND_NAME}. Everything is already set up: your drivers, your apps and your games library are ready to go. This short tour shows you where things are.
+Icon=file:///usr/share/pixmaps/oneclick-logo.svg
+Comment=${BRAND_NAME}
+URL=${BRAND_URL}
+INTRO
+fi
+
+if [[ -x /usr/bin/plasma-welcome && ! -L /usr/bin/plasma-welcome && ! -x /usr/libexec/oneclick-plasma-welcome ]]; then
+    mv /usr/bin/plasma-welcome /usr/libexec/oneclick-plasma-welcome
+fi
+if [[ -x /usr/libexec/oneclick-plasma-welcome ]]; then
+    cat > /usr/bin/plasma-welcome <<'WELCOMECMD'
+#!/usr/bin/bash
+# Show only our Welcome Intro and OneClick extra pages unless specific mode flags are passed.
+for arg in "$@"; do
+    case "${arg}" in
+        --pages|--pages=*|--post-update|--live-environment|--safe-mode|-h|--help|--help-all|-v|--version|--author|--license|--self-test)
+            exec /usr/libexec/oneclick-plasma-welcome "$@"
+            ;;
+    esac
+done
+
+extra_dir="/usr/share/plasma/plasma-welcome/extra-pages"
+pages=()
+has_custom_welcome=false
+if [[ -d "${extra_dir}" ]]; then
+    while IFS= read -r f; do
+        base="${f##*/}"
+        [[ "${base}" == 00-* ]] && has_custom_welcome=true
+        pages+=("${base}")
+    done < <(LC_ALL=C find "${extra_dir}" -maxdepth 1 -type f -name '*.qml' | LC_ALL=C sort)
+fi
+if [[ "${has_custom_welcome}" == false ]]; then
+    pages=("Welcome.qml" "${pages[@]}")
+fi
+joined="$(IFS=,; echo "${pages[*]}")"
+exec /usr/libexec/oneclick-plasma-welcome --pages "${joined}" "$@"
+WELCOMECMD
+    chmod 755 /usr/bin/plasma-welcome
+fi
+
+# Trim redundant first-time setup steps while keeping Language, Keyboard, Wi-Fi, Account, Time, and Completed!.
+rm -rf /usr/share/plasma/packages/org.kde.plasmasetup.hostname \
+       /usr/share/plasma/packages/org.kde.plasmasetup.prepare || true
+
+### Cloud drives tooling (OneDrive and Google Drive folder mounts)
+dnf5 install -y rclone fuse3
 
 ### Desktop defaults (system-wide, so they apply to every new user)
 # Double-click opens, single-click selects, like Windows Explorer.
@@ -356,3 +415,8 @@ rm -f /usr/share/applications/kcm_updates.desktop /usr/lib64/qt6/plugins/plasma/
 setcfg kwinrc ElectricBorders BottomRight ShowDesktop
 setcfg kwinrc Windows ElectricBorderDelay 1000
 setcfg kwinrc Windows ElectricBorderCooldown 800
+
+### Plain application crash dialog (replaces KDE's Bugzilla crash wizard)
+test -x /usr/libexec/oneclick-crash-dialog
+ln -sf /usr/libexec/oneclick-crash-dialog /usr/libexec/drkonqi
+ln -sf /usr/libexec/oneclick-crash-dialog /usr/bin/drkonqi-coredump-gui
