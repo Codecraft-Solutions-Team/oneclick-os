@@ -7,20 +7,22 @@ Window {
     id: win
 
     property bool detailsExpanded: false
+    readonly property int collapsedHeight: Math.max(220, headerRow.implicitHeight + 170)
+    readonly property int targetHeight: detailsExpanded ? 460 : collapsedHeight
 
     title: crash.appTitle + " — OneClick OS"
     width: 500
-    height: detailsExpanded ? 460 : Math.max(220, mainCol.implicitHeight + 64)
+    height: targetHeight
     minimumWidth: 420
-    minimumHeight: detailsExpanded ? 360 : 210
+    minimumHeight: targetHeight
+    maximumHeight: targetHeight
     visible: true
     color: "#0a1020"
     flags: Qt.Dialog | Qt.WindowTitleHint | Qt.WindowCloseButtonHint
 
-    Behavior on height {
-        NumberAnimation {
-            duration: crash.expandDurationMs
-        }
+    onDetailsExpandedChanged: {
+        height = targetHeight
+        requestUpdate()
     }
 
     component FlatBtn: QQC2.Button {
@@ -71,6 +73,7 @@ Window {
             spacing: 14
 
             RowLayout {
+                id: headerRow
                 Layout.fillWidth: true
                 spacing: 14
 
@@ -162,6 +165,7 @@ Window {
                 Item { Layout.fillWidth: true }
 
                 FlatBtn {
+                    id: copyDetailsBtn
                     visible: win.detailsExpanded
                     implicitHeight: 28
                     leftPadding: 12
@@ -172,6 +176,7 @@ Window {
             }
 
             Rectangle {
+                id: detailsBox
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 visible: win.detailsExpanded
