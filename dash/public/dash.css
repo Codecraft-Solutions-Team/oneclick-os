@@ -1,0 +1,161 @@
+/* Beta Tester Dashboard layer. Sits on top of site.css and story.css (copied into /assets/
+   by build.py), so colours, fonts, and the storybook / classic switch match the main and support sites. */
+
+:root { --ui: "Inter Tight", system-ui, sans-serif; --hand: "Caveat", cursive; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+[hidden] { display: none !important; }
+
+/* ---------- header & pagehead ---------- */
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; flex: none; }
+.site-tag { font: 600 13px/1 var(--ui); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); border-left: 2px solid var(--line); padding: 3px 0 3px 12px; white-space: nowrap; }
+header.top nav a { white-space: nowrap; }
+.pagehead { padding-top: 56px; padding-bottom: 0; }
+.pagehead h1 { max-width: 20ch; }
+main > section { padding: 40px 0 88px; }
+.muted { color: var(--muted); }
+.prewrap { white-space: pre-wrap; word-break: break-word; margin: 0; }
+
+/* ---------- shared callouts, forms, badges ---------- */
+.callout { margin: 0 0 24px; padding: 16px 20px 16px 22px; background: var(--ink-2); border: 1.5px solid var(--line); border-left: 6px solid var(--teal); border-radius: var(--radius); font: 400 15.5px/1.55 var(--ui); font-style: normal; }
+html[data-style=story] .callout { border: 2px solid var(--line); border-left: 8px solid var(--teal); border-radius: 6px 14px 9px 13px; }
+.callout.warn, html[data-style=story] .callout.warn { border-left-color: #d97706; }
+.callout p { margin: 0 0 8px; }
+.callout p:last-child { margin-bottom: 0; }
+
+.report input, .report textarea, .report select { width: 100%; max-width: 100%; min-width: 0; }
+.report label.inline { display: flex; align-items: center; gap: 10px; font-weight: 500; cursor: pointer; }
+.report label.inline input[type="checkbox"] { width: auto; flex: none; margin: 0; }
+.report .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.form-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.form-status, .status-msg, .status-note { font: 500 15px/1.45 var(--ui); margin: 4px 0 0; color: var(--muted); }
+.form-status:empty, .status-msg:empty { display: none; }
+.report .err, .err, .form-status.err { color: #dc2626; font-weight: 600; margin: 0; }
+html:not([data-theme=light]) .report .err,
+html:not([data-theme=light]) .err,
+html:not([data-theme=light]) .form-status.err { color: #f87171; }
+.form-status.ok { color: var(--teal); font-weight: 600; }
+.btn-sm { padding: 7px 14px; font-size: 13.5px; }
+.btn-danger { background: #b91c1c; color: #ffffff; }
+.btn-danger:hover { background: #991b1b; }
+.link-btn { background: none; border: 0; padding: 0; font: 500 13.5px/1.2 var(--ui); color: var(--teal); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.link-btn:hover { color: var(--text); }
+
+.badge, .status-badge { display: inline-flex; align-items: center; font: 600 11.5px/1 var(--ui); letter-spacing: .05em; text-transform: uppercase; padding: 5px 10px; border-radius: 999px; border: 1.5px solid var(--line); color: var(--muted); background: transparent; white-space: nowrap; }
+html[data-style=story] .badge, html[data-style=story] .status-badge { border-radius: 6px 10px 7px 9px; }
+.badge.status-new, .status-badge.status-new, .status-badge[data-status="new"],
+.badge.beta { border-color: var(--teal); color: var(--teal); background: color-mix(in srgb, var(--teal) 10%, transparent); }
+.badge.status-looking, .status-badge.status-looking, .status-badge[data-status="looking"] { border-color: #b45309; color: #b45309; background: color-mix(in srgb, #f59e0b 14%, transparent); }
+.badge.status-fixed, .status-badge.status-fixed, .status-badge[data-status="fixed"],
+.badge.status-works, .status-badge.status-works, .status-badge[data-status="works"] { border-color: #15803d; color: #15803d; background: color-mix(in srgb, #16a34a 12%, transparent); }
+.badge.status-broken, .status-badge.status-broken, .status-badge[data-status="broken"] { border-color: #b91c1c; color: #b91c1c; background: color-mix(in srgb, #dc2626 12%, transparent); }
+.badge.status-not-a-bug, .status-badge.status-not-a-bug, .status-badge[data-status="not a bug"], .status-badge[data-status="not-a-bug"],
+.badge.status-untested, .status-badge.status-untested, .status-badge[data-status="untested"] { border-color: var(--line); color: var(--muted); }
+.badge.status-duplicate, .status-badge.status-duplicate, .status-badge[data-status="duplicate"] { border-style: dashed; border-color: var(--line); color: var(--muted); }
+
+html:not([data-theme=light]) .badge.status-looking,
+html:not([data-theme=light]) .status-badge.status-looking,
+html:not([data-theme=light]) .status-badge[data-status="looking"] { border-color: #fbbf24; color: #fbbf24; }
+html:not([data-theme=light]) .badge.status-fixed,
+html:not([data-theme=light]) .status-badge.status-fixed,
+html:not([data-theme=light]) .status-badge[data-status="fixed"],
+html:not([data-theme=light]) .badge.status-works,
+html:not([data-theme=light]) .status-badge.status-works,
+html:not([data-theme=light]) .status-badge[data-status="works"] { border-color: #4ade80; color: #4ade80; }
+html:not([data-theme=light]) .badge.status-broken,
+html:not([data-theme=light]) .status-badge.status-broken,
+html:not([data-theme=light]) .status-badge[data-status="broken"] { border-color: #f87171; color: #f87171; }
+
+.badge.team, .team-badge, .role-badge { display: inline-flex; align-items: center; font: 700 11.5px/1 var(--ui); letter-spacing: .05em; text-transform: uppercase; padding: 5px 9px; border-radius: 6px; background: var(--teal); color: var(--teal-ink); border: 1.5px solid var(--teal); white-space: nowrap; }
+html[data-style=story] .badge.team, html[data-style=story] .team-badge, html[data-style=story] .role-badge { border-color: var(--line); border-radius: 6px 9px 5px 8px; }
+
+/* ---------- dashboard layout & cards ---------- */
+.dash-gate { max-width: 720px; }
+[data-gate-msg] { margin: 0 0 22px; padding: 18px 20px; border: 1.5px dashed #b91c1c; border-radius: var(--radius); background: var(--ink-2); display: grid; gap: 12px; }
+html[data-style=story] [data-gate-msg] { border: 2px dashed #b91c1c; border-radius: 8px 14px 9px 13px; }
+[data-gate-msg] p { margin: 0; }
+[data-gate-msg]:empty { display: none; }
+
+.dash-signin-card { max-width: 580px; }
+.dash-signin-card h2 { margin-top: 0; }
+.dash-signin-card > p.muted { margin: 0 0 18px; }
+.google-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: var(--ink); color: var(--text); }
+.google-btn:hover { border-color: var(--teal); }
+.google-ico { width: 18px; height: 18px; flex: none; display: block; }
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--muted); font: 500 13.5px/1.2 var(--ui); }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; border-top: 1.5px dashed var(--line); }
+
+.dash-main { display: grid; gap: 24px; }
+.dash-main[hidden], #dash-auth-gate[hidden], #dash-staff-panel[hidden] { display: none; }
+
+.dash-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.dash-card { background: var(--ink-2); border: 1.5px solid var(--line); border-radius: var(--radius); padding: 24px; min-width: 0; }
+html[data-style=story] .dash-card { border: 2px solid var(--line); border-radius: var(--wobble2); box-shadow: 4px 5px 0 var(--line); }
+.dash-card h2 { font-size: 22px; margin: 0 0 12px; max-width: none; }
+.dash-card h3 { font-size: 18px; margin: 14px 0 8px; }
+.dash-card a { color: var(--teal); text-underline-offset: 3px; }
+.dash-card a.btn { color: var(--teal-ink); text-decoration: none; }
+.dash-card a.btn.ghost { color: var(--text); }
+
+.dash-card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.dash-card-head h2 { margin: 0; }
+
+.dash-meta-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px 16px; margin-bottom: 16px; }
+.dash-meta-row > div { min-width: 0; word-break: break-word; }
+.dash-meta-row .status-note { margin: 6px 0 0; font-size: 14px; font-weight: 400; }
+
+.dash-links-row { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 0 0 18px; padding-bottom: 16px; border-bottom: 1.5px dashed var(--line); font: 600 15px/1.4 var(--ui); }
+.dash-os-form { max-width: none; gap: 12px; }
+.dash-privacy-note { margin: 0; font: 400 14px/1.5 var(--ui); color: var(--muted); }
+
+/* ---------- notifications ---------- */
+.dash-alerts { border-left: 6px solid var(--teal); }
+html[data-style=story] .dash-alerts { border-left: 8px solid var(--teal); }
+.dash-list { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.dash-list li { color: var(--text); }
+
+/* ---------- pinned team notes & installer ---------- */
+.dash-notes-list { display: grid; gap: 14px; }
+.dash-note { padding: 16px 18px; border: 1.5px dashed var(--line); border-radius: var(--radius); background: var(--ink); display: grid; gap: 8px; }
+html[data-style=story] .dash-note { border: 2px dashed var(--line); border-radius: 8px 14px 9px 13px; background: var(--ink-2); }
+.dash-note-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; font: 500 14px/1.35 var(--ui); }
+.dash-note-head strong { font-size: 17px; color: var(--text); }
+.dash-installer-box { margin-bottom: 14px; display: grid; gap: 10px; }
+.dash-installer-box p { margin: 0; }
+
+/* ---------- tester reports list ---------- */
+.comm-list { border-top: 1.5px dashed var(--line); }
+.dash-report-row { padding: 12px 0; border-bottom: 1.5px dashed var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font: 400 15.5px/1.4 var(--ui); }
+.dash-report-row:last-child { border-bottom: 0; }
+
+/* ---------- hardware / feature checklist ---------- */
+.dash-check-intro { margin: 0 0 16px; font: 400 15.5px/1.5 var(--ui); }
+#dash-check-form { max-width: none; margin-bottom: 22px; }
+.dash-checks-list { display: grid; gap: 10px; margin: 10px 0 18px; }
+.dash-check-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: var(--radius); background: var(--ink); font: 400 15px/1.45 var(--ui); }
+html[data-style=story] .dash-check-row { border: 2px solid var(--line); border-radius: 8px 12px 9px 11px; background: var(--ink-2); }
+.dash-check-row > div { flex-basis: 100%; color: var(--muted); }
+
+/* ---------- staff panel ---------- */
+.dash-staff { border-style: dashed; border-color: var(--teal); display: grid; gap: 18px; }
+.dash-staff-block { padding-top: 22px; margin-top: 6px; border-top: 1.5px dashed var(--line); display: grid; gap: 12px; }
+.dash-staff-block:first-of-type { padding-top: 0; margin-top: 0; border-top: 0; }
+.dash-staff-block h3 { margin: 0; font-size: 18px; }
+.dash-staff-list { display: grid; gap: 8px; }
+.dash-staff-row { padding: 12px 14px; border: 1.5px solid var(--line); border-radius: var(--radius); background: var(--ink); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font: 400 14.5px/1.4 var(--ui); }
+html[data-style=story] .dash-staff-row { border: 2px solid var(--line); border-radius: 8px 12px 9px 11px; background: var(--ink-2); }
+.dash-staff-row select { font: 500 14px/1.2 var(--ui); color: var(--text); background: var(--ink-2); border: 1.5px solid var(--line); border-radius: 8px; padding: 5px 8px; max-width: 100%; }
+.dash-staff-row code { font: 500 13px/1.3 ui-monospace, Menlo, monospace; word-break: break-all; }
+
+/* ---------- smaller screens (including 375px phone) ---------- */
+@media (max-width: 960px) {
+  header.top .wrap { gap: 16px; }
+  header.top nav { gap: 14px; font-size: 14px; }
+  .dash-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .pagehead { padding-top: 34px; }
+  main > section { padding: 32px 0 64px; }
+  .site-tag { font-size: 11px; padding-left: 9px; }
+  header.top.open nav { display: flex; flex-direction: column; position: absolute; left: 0; right: 0; top: 100%; background: var(--ink); border-bottom: 2px solid var(--line); padding: 14px 20px 18px; gap: 14px; }
+  .dash-card { padding: 18px; }
+}

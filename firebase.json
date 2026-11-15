@@ -46,9 +46,37 @@
             }
           ]
         }
+      ],
+      "rewrites": [
+        {
+          "source": "/api/report",
+          "function": {
+            "functionId": "oneclickReport",
+            "region": "us-central1"
+          }
+        }
+      ]
+    },
+    {
+      "site": "oneclick-dash",
+      "public": "dash/public",
+      "cleanUrls": true,
+      "ignore": [
+        "**/.*"
       ]
     }
   ],
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    }
+  },
   "functions": [
     {
       "source": "functions",

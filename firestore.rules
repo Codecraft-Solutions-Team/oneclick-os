@@ -1,0 +1,1089 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Models (Shared codecraft-sol Project)
+// ===============================================================
+//
+// Existing Codecraft Portal & Nonprofit collections (lines below preserved verbatim):
+//   users, bookings, inquiries, messages, projects, portfolio, subscriptions,
+//   projectAddOns, settings, clientErrors, flags, appointments, subscribers,
+//   passwordSetTokens, suppressions, nonprofitApplications, agreements,
+//   deletionLog, licences, licenceAudit, counters, rateLimits, supportMessages,
+//   supportAccounts, supportPending, supportAudit, siteStatus, siteIncidents,
+//   adminNotifications, nonprofits
+//
+// OneClick OS collections (non-colliding names):
+//
+// Collection: oneclick_reports/{id} (Admin SDK only via oneclickReport function)
+//   - Private report archive containing reporter email; zero client access.
+//
+// Collection: oneclickStaff/{docId}
+//   - Document ID: Firebase Auth UID
+//   - Fields (optional): active (bool), role (string <= 40), label (string <= 120),
+//     displayName (string <= 60), note (string <= 200), addedBy (string <= 128),
+//     addedAt (timestamp), updatedAt (timestamp)
+//
+// Collection: betaTesters/{docId}
+//   - Document ID: Firebase Auth UID OR lowercase email
+//   - Fields (optional): active (bool), email (string <= 320), uid (string <= 128),
+//     label (string <= 120), name (string <= 80), note (string <= 200),
+//     addedBy (string <= 128), addedAt (timestamp), updatedAt (timestamp)
+//
+// Collection: supportInvites/{code}
+//   - Document ID: invite code string (3..64 chars)
+//   - Fields (required): active (bool), label (string 1..120),
+//     maxUses (int 1..100000), uses (int 0..maxUses)
+//
+// Collection: supportAccountMeta/{uid}
+//   - Document ID: Firebase Auth UID
+//   - Fields (at least 1 required, private to owner/staff):
+//     displayName (string 1..60), osVersion (string 0..40),
+//     lastSeenRepliesAt (timestamp), updatedAt (timestamp)
+//
+// Collection: supportRateLimits/{uid}
+//   - Document ID: Firebase Auth UID
+//   - Fields (required): lastPostAt (timestamp == request.time; 10s cooldown on update)
+//
+// Collection: supportReports/{reportId}
+//   - Document ID: report ID (1..128 chars)
+//   - Fields (required, NO email allowed):
+//     authorUid (string 1..128, immutable unless anonymizing to 'deleted'),
+//     authorName (string 1..60), isTeam (bool, immutable),
+//     title (string 3..160), what (string 5..4000, or 0..4000 when deleted == true),
+//     expected (string 0..2000), pc (string 0..160), version (string 0..60),
+//     category (enum: getting-started, desktop, apps, gaming, settings, updates, windows, troubleshooting, general),
+//     status (enum: new, looking, fixed, not a bug, duplicate),
+//     sameCount (int >= 0), replyCount (int >= 0), hasTeamReply (bool),
+//     lastTeamReplyAt (optional timestamp or null), hidden (bool), deleted (bool),
+//     flagCount (int >= 0), createdAt (timestamp, immutable),
+//     updatedAt (timestamp), lastReplyAt (timestamp)
+//
+// Subcollection: supportReports/{reportId}/votes/{uid}
+//   - Document ID: Firebase Auth UID
+//   - Fields (required): createdAt (timestamp == request.time)
+//
+// Subcollection: supportReports/{reportId}/replies/{replyId}
+//   - Document ID: reply ID (1..128 chars)
+//   - Fields (required, NO email allowed):
+//     authorUid (string 1..128), authorName (string 1..60), isTeam (bool, immutable),
+//     body (string 2..2000), hidden (bool), deleted (bool), flagCount (int >= 0),
+//     createdAt (timestamp, immutable), updatedAt (timestamp)
+//
+// Collection: supportFlags/{flagId}
+//   - Document ID: flag ID (1..128 chars)
+//   - Fields (required): targetPath (scoped path to supportReports or betaPosts),
+//     reason (string 3..500), reporterUid (string 1..128, immutable),
+//     status (enum: open, reviewed, resolved, dismissed), createdAt (timestamp, immutable)
+//
+// Collection: betaPosts/{postId}
+//   - Document ID: post ID (1..128 chars)
+//   - Fields: authorUid (string 1..128), authorName (string 1..60), isTeam (bool, immutable),
+//     title (string 3..160), body (string 2..4000), hidden (bool), deleted (bool),
+//     createdAt (timestamp, immutable), updatedAt (timestamp),
+//     optional: version (string 0..60), pc (string 0..160), replyCount (int >= 0),
+//     lastReplyAt (timestamp), flagCount (int >= 0)
+//
+// Subcollection: betaPosts/{postId}/replies/{replyId}
+//   - Document ID: reply ID (1..128 chars)
+//   - Fields (required): authorUid (string 1..128), authorName (string 1..60),
+//     isTeam (bool, immutable), body (string 2..2000), hidden (bool), deleted (bool),
+//     createdAt (timestamp, immutable), updatedAt (timestamp)
+//
+// Collection: betaNotes/{noteId}
+//   - Document ID: note ID (1..128 chars)
+//   - Fields: title (string 1..160), body (string 1..4000), createdAt (timestamp, immutable),
+//     updatedAt (timestamp), optional: buildUrl ('' or https:// URL <= 500),
+//     version (string 0..60), pinned (bool), authorUid (string 0..128), authorName (string 0..60)
+//
+// Collection: betaChecks/{checkId}
+//   - Document ID: check ID (1..200 chars)
+//   - Fields: uid (string 1..128, immutable), item (string 1..120),
+//     status (enum: works, broken, untested), updatedAt (timestamp == request.time),
+//     optional: note (string 0..1000), pc (string 0..160), version (string 0..60)
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function isOwner() {
+      return isSignedIn() && request.auth.token.email.lower() == 'admin@codecraftsol.org';
+    }
+    function isSelf(uid) { return isSignedIn() && request.auth.uid == uid; }
+
+    // Profiles: a user manages their own; the owner manages everyone.
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isOwner();
+      // A user creating their OWN profile may only be a "member" — the tier that has our free
+      // tools but not the client portal. Only the owner grants "client" or "owner". This is
+      // the rule that actually enforces the tiers: the UI gate is a convenience, but a client
+      // role written straight to Firestore would bypass it, so the server must refuse.
+      allow create: if isOwner() ||
+        (isSelf(uid) && request.resource.data.role == 'member');
+      // The person may change their own display name - and nothing else, so a role or
+      // source can never be self-written through this path.
+      allow update: if isOwner() || (
+        isSelf(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+      );
+      allow delete: if isOwner();
+    }
+
+    // Bookings: created by the booking client (own accountId) or owner; read by owner.
+    match /bookings/{id} {
+      allow create: if isSignedIn() &&
+        (request.resource.data.accountId == request.auth.uid || isOwner());
+      allow read, update, delete: if isOwner();
+    }
+
+    // Contact-form inquiries: anyone can submit a small, well-shaped doc; owner reads.
+    match /inquiries/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['name', 'email', 'message', 'createdAt']) &&
+        request.resource.data.name is string && request.resource.data.name.size() < 200 &&
+        request.resource.data.email is string && request.resource.data.email.size() < 320 &&
+        request.resource.data.email.matches('.+@.+') &&
+        request.resource.data.message is string && request.resource.data.message.size() < 5000 &&
+        request.resource.data.createdAt is number;
+      allow read, update, delete: if isOwner();
+    }
+
+    // Chat: a client sees/sends only their own thread; the owner sees all.
+    match /messages/{id} {
+      allow read: if isOwner() ||
+        (isSignedIn() && resource.data.threadId == request.auth.uid);
+      allow create: if isSignedIn() &&
+        (isOwner() ||
+          (request.resource.data.threadId == request.auth.uid &&
+           request.resource.data.from in ['client', 'nonprofit']));
+      allow update, delete: if isOwner();
+    }
+
+    // Projects (live tracker): client reads own; owner full control.
+    match /projects/{id} {
+      allow read: if isOwner() ||
+        (isSignedIn() && resource.data.clientId == request.auth.uid);
+      allow create: if isSignedIn() &&
+        (isOwner() || request.resource.data.clientId == request.auth.uid);
+      allow update, delete: if isOwner();
+    }
+
+    // Portfolio: shown publicly on the site; only the owner edits.
+    match /portfolio/{id} {
+      allow read: if true;
+      allow create, update, delete: if isOwner();
+    }
+
+    // Subscriptions: written ONLY by the Stripe webhook (Admin SDK, which
+    // bypasses these rules). A client reads their own; the owner reads all.
+    match /subscriptions/{id} {
+      allow read: if isOwner() ||
+        (isSignedIn() && resource.data.accountId == request.auth.uid);
+      allow write: if false;
+    }
+
+    // Project add-ons ledger: written ONLY by the Stripe webhook (Admin SDK).
+    // A client reads their own; the owner reads all.
+    match /projectAddOns/{id} {
+      allow read: if isOwner() ||
+        (isSignedIn() && resource.data.clientId == request.auth.uid);
+      allow create, update: if false; // written only by the Stripe webhook (Admin SDK)
+      allow delete: if isOwner();     // owner cleans these up when revoking a client
+    }
+
+    // Site settings: only the public promo doc is world-readable; owner writes all.
+    match /settings/{id} {
+      allow read: if id == 'promo';
+      allow create, update, delete: if isOwner();
+    }
+
+    // Client error logs: anyone can write a small, well-shaped error; owner reads.
+    match /clientErrors/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['message', 'url', 'ua', 'at']) &&
+        request.resource.data.message is string &&
+        request.resource.data.message.size() < 2000;
+      allow read: if isOwner();
+      allow update, delete: if false;
+    }
+
+    // Call flags from the AI phone agent: written ONLY by the flagFromCall
+    // webhook (Admin SDK). The owner reads them and updates status (open/resolved).
+    match /flags/{id} {
+      allow read, update, delete: if isOwner();
+      allow create: if false;
+    }
+
+    // Phone appointments: written ONLY by the phoneBookings webhook (Admin SDK).
+    // The owner reads and manages them from the panel.
+    match /appointments/{id} {
+      allow read, update, delete: if isOwner();
+      allow create: if false;
+    }
+
+    // Newsletter / promo subscribers: anyone can sign up with a small, well-shaped doc.
+    match /subscribers/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['email', 'source', 'createdAt']) &&
+        request.resource.data.email is string && request.resource.data.email.size() < 320 &&
+        request.resource.data.email.matches('.+@.+') &&
+        request.resource.data.source is string && request.resource.data.source.size() < 60 &&
+        request.resource.data.createdAt is number;
+      allow read, update, delete: if isOwner();
+    }
+
+    // Password-set tokens: Admin SDK only. Never readable by a client - the
+    // document is the credential, even though only its hash is stored.
+    match /passwordSetTokens/{id} {
+      allow read, write: if false;
+    }
+
+    // Email opt-outs: written only by the unsubscribe function (Admin SDK).
+    match /suppressions/{id} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
+
+    // Nonprofit applications: anyone can submit; owner reads and manages.
+    match /nonprofitApplications/{id} {
+      allow create: if request.resource.data.keys().hasOnly([
+          'fullName','email','orgName','hasWebsite','websiteUrl',
+          'helpOptions','otherText','hasSocial','facebookUrl',
+          'instagramUrl','status','createdAt'
+        ]) &&
+        request.resource.data.fullName is string && request.resource.data.fullName.size() < 200 &&
+        request.resource.data.email is string && request.resource.data.email.size() < 320 &&
+        request.resource.data.email.matches('.+@.+') &&
+        request.resource.data.orgName is string && request.resource.data.orgName.size() < 300 &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.createdAt is number;
+      allow read, update, delete: if isOwner();
+    }
+
+    // Agreements: written only by Cloud Functions (Admin SDK). Owner reads/updates
+    // agreementText; the public acceptAgreement function updates status via Admin SDK.
+    match /agreements/{id} {
+      allow read: if isOwner();
+      allow write: if false; // Admin SDK only
+    }
+
+    // Audit trail for purged declined applications. IDs and dates only - no
+    // personal data - written by the scheduled cleanup (Admin SDK).
+    match /deletionLog/{id} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
+
+    // Licences: the public reads these only through the verifyLicence function,
+    // which returns a fixed set of fields. Direct client reads would expose the
+    // internal notes and the agreement link, so they are refused outright.
+    match /licences/{id} {
+      allow read: if isOwner();
+      allow write: if false; // issued and updated by Cloud Functions only
+    }
+
+    // Licence status audit trail: append-only, written by Cloud Functions.
+    match /licenceAudit/{id} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
+
+    // Internal bookkeeping (verification rate-limit buckets, any future
+    // counters). Never touched from a browser.
+    match /counters/{id} {
+      allow read, write: if false;
+    }
+    match /rateLimits/{id} {
+      allow read, write: if false;
+    }
+
+    // ---- Not-for-profit support chat ------------------------------------
+    // Everything is written by Cloud Functions, so a client can never set its
+    // own classification, count or flags. An organisation reads only its own.
+    match /supportMessages/{id} {
+      allow read: if isOwner() ||
+        (isSignedIn() && resource.data.orgUid == request.auth.uid);
+      allow write: if false;
+    }
+    match /supportAccounts/{orgUid} {
+      allow read: if isOwner() || isSelf(orgUid);
+      allow write: if false;
+    }
+    match /supportPending/{id} {
+      allow read, write: if false;
+    }
+    match /supportAudit/{id} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
+    match /siteStatus/{orgUid} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
+    match /siteIncidents/{id} {
+      allow read: if isOwner();
+      allow write: if false;
+    }
+    match /adminNotifications/{id} {
+      allow read: if isOwner();
+      // The owner may only tick a notification off as read.
+      allow update: if isOwner() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create, delete: if false;
+    }
+
+    // Nonprofits (approved orgs): written by Cloud Functions. Owner reads/manages.
+    match /nonprofits/{id} {
+      allow read: if isOwner() ||
+        (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow write: if false; // Admin SDK only
+    }
+
+    // ===============================================================
+    // OneClick OS Support & Beta Tester Dashboard
+    // ===============================================================
+
+    // Safe wrapper around isOwner() when a signed-in token lacks an email claim.
+    function isCodecraftOwner() {
+      return isSignedIn() &&
+        ('email' in request.auth.token) &&
+        request.auth.token.email is string &&
+        isOwner();
+    }
+
+    function ocDocIsActive(docPath) {
+      return exists(docPath) && get(docPath).data.get('active', true) == true;
+    }
+
+    function isOneClickStaff() {
+      return isCodecraftOwner() || (
+        isSignedIn() && (
+          request.auth.token.get('staff', false) == true ||
+          ocDocIsActive(/databases/$(database)/documents/oneclickStaff/$(request.auth.uid))
+        )
+      );
+    }
+
+    function isBetaTester() {
+      return isOneClickStaff() || (
+        isSignedIn() && (
+          request.auth.token.get('betaTester', false) == true ||
+          ocDocIsActive(/databases/$(database)/documents/betaTesters/$(request.auth.uid)) ||
+          (
+            ('email' in request.auth.token) &&
+            request.auth.token.email is string &&
+            request.auth.token.email.size() > 0 &&
+            request.auth.token.get('email_verified', false) == true &&
+            ocDocIsActive(/databases/$(database)/documents/betaTesters/$(request.auth.token.email.lower()))
+          )
+        )
+      );
+    }
+
+    // ---- Shared OneClick Validation Helpers ----
+
+    function ocValidStr(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function ocOptStr(data, field, minLen, maxLen) {
+      return !(field in data) || ocValidStr(data[field], minLen, maxLen);
+    }
+
+    function ocOptBool(data, field) {
+      return !(field in data) || data[field] is bool;
+    }
+
+    function ocOptTimestamp(data, field) {
+      return !(field in data) || data[field] is timestamp;
+    }
+
+    function ocValidSupportCategory(cat) {
+      return cat in [
+        'getting-started', 'desktop', 'apps', 'gaming', 'settings',
+        'updates', 'windows', 'troubleshooting', 'general'
+      ];
+    }
+
+    function ocValidReportStatus(status) {
+      return status in ['new', 'looking', 'fixed', 'not a bug', 'duplicate'];
+    }
+
+    function ocValidCheckStatus(status) {
+      return status in ['works', 'broken', 'untested'];
+    }
+
+    function ocValidFlagStatus(status) {
+      return status in ['open', 'reviewed', 'resolved', 'dismissed'];
+    }
+
+    // ---- OneClick Domain Validators (used in both create and update) ----
+
+    function isValidOneClickStaffDoc(data) {
+      return data is map &&
+        data.keys().hasOnly(['active', 'role', 'label', 'displayName', 'note', 'addedBy', 'addedAt', 'updatedAt']) &&
+        ocOptBool(data, 'active') &&
+        ocOptStr(data, 'role', 1, 40) &&
+        ocOptStr(data, 'label', 1, 120) &&
+        ocOptStr(data, 'displayName', 1, 60) &&
+        ocOptStr(data, 'note', 0, 200) &&
+        ocOptStr(data, 'addedBy', 1, 128) &&
+        ocOptTimestamp(data, 'addedAt') &&
+        ocOptTimestamp(data, 'updatedAt');
+    }
+
+    function isValidBetaTesterDoc(data) {
+      return data is map &&
+        data.keys().hasOnly(['active', 'email', 'uid', 'label', 'name', 'note', 'addedBy', 'addedAt', 'updatedAt']) &&
+        ocOptBool(data, 'active') &&
+        ocOptStr(data, 'email', 3, 320) &&
+        (!('email' in data) || data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')) &&
+        ocOptStr(data, 'uid', 1, 128) &&
+        ocOptStr(data, 'label', 1, 120) &&
+        ocOptStr(data, 'name', 1, 80) &&
+        ocOptStr(data, 'note', 0, 200) &&
+        ocOptStr(data, 'addedBy', 1, 128) &&
+        ocOptTimestamp(data, 'addedAt') &&
+        ocOptTimestamp(data, 'updatedAt');
+    }
+
+    function isValidSupportInvite(data) {
+      return data is map &&
+        data.keys().hasOnly(['active', 'label', 'maxUses', 'uses']) &&
+        data.keys().hasAll(['active', 'label', 'maxUses', 'uses']) &&
+        data.active is bool &&
+        ocValidStr(data.label, 1, 120) &&
+        data.maxUses is int && data.maxUses >= 1 && data.maxUses <= 100000 &&
+        data.uses is int && data.uses >= 0 && data.uses <= data.maxUses;
+    }
+
+    function isValidSupportAccountMeta(data) {
+      return data is map &&
+        data.keys().hasOnly(['displayName', 'osVersion', 'lastSeenRepliesAt', 'updatedAt']) &&
+        data.keys().size() >= 1 &&
+        ocOptStr(data, 'displayName', 1, 60) &&
+        ocOptStr(data, 'osVersion', 0, 40) &&
+        ocOptTimestamp(data, 'lastSeenRepliesAt') &&
+        ocOptTimestamp(data, 'updatedAt');
+    }
+
+    function isValidSupportRateLimit(data) {
+      return data is map &&
+        data.keys().hasOnly(['lastPostAt']) &&
+        data.keys().hasAll(['lastPostAt']) &&
+        data.lastPostAt is timestamp &&
+        data.lastPostAt == request.time;
+    }
+
+    function isValidSupportReport(data) {
+      return data is map &&
+        data.keys().hasOnly([
+          'authorUid', 'authorName', 'isTeam', 'title', 'what', 'expected',
+          'pc', 'version', 'category', 'status', 'sameCount', 'replyCount',
+          'hasTeamReply', 'lastTeamReplyAt', 'hidden', 'deleted', 'flagCount',
+          'createdAt', 'updatedAt', 'lastReplyAt'
+        ]) &&
+        data.keys().hasAll([
+          'authorUid', 'authorName', 'isTeam', 'title', 'what', 'expected',
+          'pc', 'version', 'category', 'status', 'sameCount', 'replyCount',
+          'hasTeamReply', 'hidden', 'deleted', 'flagCount',
+          'createdAt', 'updatedAt', 'lastReplyAt'
+        ]) &&
+        ocValidStr(data.authorUid, 1, 128) &&
+        ocValidStr(data.authorName, 1, 60) &&
+        data.isTeam is bool &&
+        ocValidStr(data.title, 3, 160) &&
+        data.deleted is bool &&
+        data.what is string &&
+        ((data.deleted == true && data.what.size() <= 4000) ||
+         (data.deleted == false && data.what.size() >= 5 && data.what.size() <= 4000)) &&
+        ocValidStr(data.expected, 0, 2000) &&
+        ocValidStr(data.pc, 0, 160) &&
+        ocValidStr(data.version, 0, 60) &&
+        ocValidSupportCategory(data.category) &&
+        ocValidReportStatus(data.status) &&
+        data.sameCount is int && data.sameCount >= 0 && data.sameCount <= 1000000 &&
+        data.replyCount is int && data.replyCount >= 0 && data.replyCount <= 1000000 &&
+        data.hasTeamReply is bool &&
+        (!('lastTeamReplyAt' in data) || data.lastTeamReplyAt == null || data.lastTeamReplyAt is timestamp) &&
+        data.hidden is bool &&
+        data.flagCount is int && data.flagCount >= 0 && data.flagCount <= 1000000 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp &&
+        data.lastReplyAt is timestamp;
+    }
+
+    function isValidSupportVote(data) {
+      return data is map &&
+        data.keys().hasOnly(['createdAt']) &&
+        data.keys().hasAll(['createdAt']) &&
+        data.createdAt is timestamp &&
+        data.createdAt == request.time;
+    }
+
+    function isValidSupportReply(data) {
+      return data is map &&
+        data.keys().hasOnly([
+          'authorUid', 'authorName', 'isTeam', 'body',
+          'hidden', 'deleted', 'flagCount', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasAll([
+          'authorUid', 'authorName', 'isTeam', 'body',
+          'hidden', 'deleted', 'flagCount', 'createdAt', 'updatedAt'
+        ]) &&
+        ocValidStr(data.authorUid, 1, 128) &&
+        ocValidStr(data.authorName, 1, 60) &&
+        data.isTeam is bool &&
+        ocValidStr(data.body, 2, 2000) &&
+        data.hidden is bool &&
+        data.deleted is bool &&
+        data.flagCount is int && data.flagCount >= 0 && data.flagCount <= 1000000 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSupportFlag(data) {
+      return data is map &&
+        data.keys().hasOnly(['targetPath', 'reason', 'reporterUid', 'status', 'createdAt']) &&
+        data.keys().hasAll(['targetPath', 'reason', 'reporterUid', 'status', 'createdAt']) &&
+        ocValidStr(data.targetPath, 5, 240) &&
+        data.targetPath.matches('^(supportReports|betaPosts)/[A-Za-z0-9_-]+(/replies/[A-Za-z0-9_-]+)?$') &&
+        ocValidStr(data.reason, 3, 500) &&
+        ocValidStr(data.reporterUid, 1, 128) &&
+        ocValidFlagStatus(data.status) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidBetaPost(data) {
+      return data is map &&
+        data.keys().hasOnly([
+          'authorUid', 'authorName', 'isTeam', 'title', 'body',
+          'version', 'pc', 'replyCount', 'lastReplyAt', 'flagCount',
+          'hidden', 'deleted', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasAll([
+          'authorUid', 'authorName', 'isTeam', 'title', 'body',
+          'hidden', 'deleted', 'createdAt', 'updatedAt'
+        ]) &&
+        ocValidStr(data.authorUid, 1, 128) &&
+        ocValidStr(data.authorName, 1, 60) &&
+        data.isTeam is bool &&
+        ocValidStr(data.title, 3, 160) &&
+        ocValidStr(data.body, 2, 4000) &&
+        ocOptStr(data, 'version', 0, 60) &&
+        ocOptStr(data, 'pc', 0, 160) &&
+        (!('replyCount' in data) || (data.replyCount is int && data.replyCount >= 0 && data.replyCount <= 1000000)) &&
+        ocOptTimestamp(data, 'lastReplyAt') &&
+        (!('flagCount' in data) || (data.flagCount is int && data.flagCount >= 0 && data.flagCount <= 1000000)) &&
+        data.hidden is bool &&
+        data.deleted is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidBetaReply(data) {
+      return data is map &&
+        data.keys().hasOnly([
+          'authorUid', 'authorName', 'isTeam', 'body',
+          'hidden', 'deleted', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasAll([
+          'authorUid', 'authorName', 'isTeam', 'body',
+          'hidden', 'deleted', 'createdAt', 'updatedAt'
+        ]) &&
+        ocValidStr(data.authorUid, 1, 128) &&
+        ocValidStr(data.authorName, 1, 60) &&
+        data.isTeam is bool &&
+        ocValidStr(data.body, 2, 2000) &&
+        data.hidden is bool &&
+        data.deleted is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidBetaNote(data) {
+      return data is map &&
+        data.keys().hasOnly([
+          'title', 'body', 'buildUrl', 'version', 'pinned',
+          'authorUid', 'authorName', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasAll(['title', 'body', 'createdAt', 'updatedAt']) &&
+        ocValidStr(data.title, 1, 160) &&
+        ocValidStr(data.body, 1, 4000) &&
+        (!('buildUrl' in data) || data.buildUrl == '' ||
+          (ocValidStr(data.buildUrl, 8, 500) && data.buildUrl.matches('^https://.*'))) &&
+        ocOptStr(data, 'version', 0, 60) &&
+        ocOptBool(data, 'pinned') &&
+        ocOptStr(data, 'authorUid', 0, 128) &&
+        ocOptStr(data, 'authorName', 0, 60) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidBetaCheck(data) {
+      return data is map &&
+        data.keys().hasOnly(['uid', 'item', 'status', 'note', 'pc', 'version', 'updatedAt']) &&
+        data.keys().hasAll(['uid', 'item', 'status', 'updatedAt']) &&
+        ocValidStr(data.uid, 1, 128) &&
+        ocValidStr(data.item, 1, 120) &&
+        ocValidCheckStatus(data.status) &&
+        ocOptStr(data, 'note', 0, 1000) &&
+        ocOptStr(data, 'pc', 0, 160) &&
+        ocOptStr(data, 'version', 0, 60) &&
+        data.updatedAt is timestamp;
+    }
+
+    // ---- OneClick Collection Rules ----
+
+    // Private archive of main-site /api/report submissions (Admin SDK only).
+    match /oneclick_reports/{id} {
+      allow read, write: if false;
+    }
+
+    // Staff directory: only owner writes; users may only check their own UID doc.
+    match /oneclickStaff/{docId} {
+      allow get: if isSignedIn() && (docId == request.auth.uid || isOneClickStaff());
+      allow list: if isOneClickStaff();
+      allow create, update: if isCodecraftOwner() &&
+        docId.size() >= 1 && docId.size() <= 128 &&
+        isValidOneClickStaffDoc(request.resource.data);
+      allow delete: if isCodecraftOwner();
+    }
+
+    // Beta tester allowlist (keyed by UID or lowercase email): staff writes; no user listing.
+    match /betaTesters/{docId} {
+      allow get: if isOneClickStaff() || (
+        isSignedIn() && (
+          docId == request.auth.uid ||
+          (
+            ('email' in request.auth.token) &&
+            request.auth.token.email is string &&
+            request.auth.token.email.size() > 0 &&
+            request.auth.token.get('email_verified', false) == true &&
+            docId == request.auth.token.email.lower()
+          )
+        )
+      );
+      allow list: if isOneClickStaff();
+      allow create, update: if isOneClickStaff() &&
+        docId.size() >= 1 && docId.size() <= 320 &&
+        isValidBetaTesterDoc(request.resource.data);
+      allow delete: if isOneClickStaff();
+    }
+
+    // Signup invite codes: known code get allowed; listing/creation/deletion staff-only.
+    match /supportInvites/{code} {
+      allow get: if true;
+      allow list, delete: if isOneClickStaff();
+      allow create: if isOneClickStaff() &&
+        code.size() >= 3 && code.size() <= 64 &&
+        isValidSupportInvite(request.resource.data);
+      allow update: if isValidSupportInvite(request.resource.data) && (
+        isOneClickStaff() || (
+          isSignedIn() &&
+          resource.data.active == true &&
+          resource.data.uses < resource.data.maxUses &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uses']) &&
+          request.resource.data.uses is int &&
+          request.resource.data.uses == resource.data.uses + 1
+        )
+      );
+    }
+
+    // Private per-user preferences and notification cursor.
+    match /supportAccountMeta/{uid} {
+      allow read: if isSelf(uid) || isOneClickStaff();
+      allow create, update: if isSelf(uid) &&
+        isValidSupportAccountMeta(request.resource.data);
+      allow delete: if isSelf(uid) || isOneClickStaff();
+    }
+
+    // Per-user server-timestamp post cooldown (10 seconds between creates).
+    match /supportRateLimits/{uid} {
+      allow read: if isSelf(uid) || isOneClickStaff();
+      allow create: if isSelf(uid) &&
+        isValidSupportRateLimit(request.resource.data);
+      allow update: if isSelf(uid) &&
+        isValidSupportRateLimit(request.resource.data) &&
+        request.time > resource.data.lastPostAt + duration.value(10, 's');
+      allow delete: if isSelf(uid) || isOneClickStaff();
+    }
+
+    // Public community problem reports (zero PII allowed).
+    match /supportReports/{reportId} {
+      allow read: if isOneClickStaff() || resource.data.hidden == false;
+
+      allow create: if isSignedIn() &&
+        reportId.size() >= 1 && reportId.size() <= 128 &&
+        isValidSupportReport(request.resource.data) &&
+        request.resource.data.authorUid == request.auth.uid &&
+        request.resource.data.status == 'new' &&
+        (request.resource.data.isTeam == false || isOneClickStaff()) &&
+        request.resource.data.sameCount == 1 &&
+        request.resource.data.replyCount == 0 &&
+        request.resource.data.hasTeamReply == false &&
+        (!('lastTeamReplyAt' in request.resource.data) || request.resource.data.lastTeamReplyAt == null) &&
+        request.resource.data.hidden == false &&
+        request.resource.data.deleted == false &&
+        request.resource.data.flagCount == 0 &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.lastReplyAt == request.time &&
+        (
+          isOneClickStaff() ||
+          getAfter(/databases/$(database)/documents/supportRateLimits/$(request.auth.uid)).data.lastPostAt == request.time
+        );
+
+      allow update: if isValidSupportReport(request.resource.data) &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.isTeam == resource.data.isTeam &&
+        (
+          // 1. Staff moderation and official status/reply metadata updates
+          (
+            isOneClickStaff() &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'status', 'hidden', 'deleted', 'hasTeamReply', 'lastTeamReplyAt',
+              'flagCount', 'replyCount', 'lastReplyAt', 'updatedAt',
+              'title', 'what', 'expected', 'pc', 'version', 'category',
+              'authorUid', 'authorName'
+            ]) &&
+            request.resource.data.sameCount == resource.data.sameCount &&
+            (
+              request.resource.data.authorUid == resource.data.authorUid ||
+              (request.resource.data.deleted == true &&
+               request.resource.data.authorUid == 'deleted' &&
+               request.resource.data.authorName == 'deleted user')
+            )
+          ) ||
+          // 2. Author editing their own non-deleted report content
+          (
+            isSignedIn() &&
+            resource.data.authorUid == request.auth.uid &&
+            resource.data.authorUid != 'deleted' &&
+            resource.data.deleted == false &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'title', 'what', 'expected', 'pc', 'version', 'category', 'updatedAt'
+            ]) &&
+            request.resource.data.updatedAt == request.time
+          ) ||
+          // 3. Author anonymizing / soft-deleting their own report
+          (
+            isSignedIn() &&
+            resource.data.authorUid == request.auth.uid &&
+            resource.data.authorUid != 'deleted' &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'authorUid', 'authorName', 'what', 'expected', 'pc', 'deleted', 'updatedAt'
+            ]) &&
+            request.resource.data.authorUid in ['deleted', '', resource.data.authorUid] &&
+            request.resource.data.authorName == 'deleted user' &&
+            request.resource.data.deleted == true &&
+            request.resource.data.updatedAt == request.time
+          ) ||
+          // 4. Signed-in voter toggling "Same problem for me" in atomic batch with votes/{uid}
+          (
+            isSignedIn() &&
+            resource.data.hidden == false &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sameCount', 'updatedAt']) &&
+            request.resource.data.updatedAt == request.time &&
+            request.resource.data.sameCount is int &&
+            (
+              (
+                request.resource.data.sameCount == resource.data.sameCount + 1 &&
+                !exists(/databases/$(database)/documents/supportReports/$(reportId)/votes/$(request.auth.uid)) &&
+                existsAfter(/databases/$(database)/documents/supportReports/$(reportId)/votes/$(request.auth.uid))
+              ) ||
+              (
+                request.resource.data.sameCount == resource.data.sameCount - 1 &&
+                request.resource.data.sameCount >= 0 &&
+                exists(/databases/$(database)/documents/supportReports/$(reportId)/votes/$(request.auth.uid)) &&
+                !existsAfter(/databases/$(database)/documents/supportReports/$(reportId)/votes/$(request.auth.uid))
+              )
+            )
+          ) ||
+          // 5. Signed-in replier incrementing replyCount in atomic batch with replies/{replyId}
+          (
+            isSignedIn() &&
+            resource.data.hidden == false &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'replyCount', 'lastReplyAt', 'hasTeamReply', 'lastTeamReplyAt', 'updatedAt'
+            ]) &&
+            request.resource.data.replyCount is int &&
+            request.resource.data.replyCount == resource.data.replyCount + 1 &&
+            request.resource.data.lastReplyAt == request.time &&
+            request.resource.data.updatedAt == request.time &&
+            (
+              isOneClickStaff() ||
+              !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hasTeamReply', 'lastTeamReplyAt'])
+            )
+          )
+        );
+
+      allow delete: if isOneClickStaff() || (
+        isSignedIn() &&
+        resource.data.authorUid == request.auth.uid &&
+        resource.data.authorUid != 'deleted'
+      );
+
+      // One "Same problem for me" vote per user per report.
+      match /votes/{uid} {
+        allow read: if true;
+        allow create: if isSelf(uid) &&
+          isValidSupportVote(request.resource.data) &&
+          exists(/databases/$(database)/documents/supportReports/$(reportId)) &&
+          get(/databases/$(database)/documents/supportReports/$(reportId)).data.hidden == false;
+        allow update: if false;
+        allow delete: if isSelf(uid);
+      }
+
+      // Report thread replies (zero PII allowed).
+      match /replies/{replyId} {
+        allow read: if isOneClickStaff() || resource.data.hidden == false;
+
+        allow create: if isSignedIn() &&
+          replyId.size() >= 1 && replyId.size() <= 128 &&
+          isValidSupportReply(request.resource.data) &&
+          request.resource.data.authorUid == request.auth.uid &&
+          (request.resource.data.isTeam == false || isOneClickStaff()) &&
+          request.resource.data.hidden == false &&
+          request.resource.data.deleted == false &&
+          request.resource.data.flagCount == 0 &&
+          request.resource.data.createdAt == request.time &&
+          request.resource.data.updatedAt == request.time &&
+          exists(/databases/$(database)/documents/supportReports/$(reportId)) &&
+          (
+            isOneClickStaff() ||
+            get(/databases/$(database)/documents/supportReports/$(reportId)).data.hidden == false
+          );
+
+        allow update: if isValidSupportReply(request.resource.data) &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.isTeam == resource.data.isTeam &&
+          (
+            (
+              isOneClickStaff() &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'body', 'hidden', 'deleted', 'flagCount', 'updatedAt', 'authorUid', 'authorName'
+              ]) &&
+              (
+                request.resource.data.authorUid == resource.data.authorUid ||
+                (request.resource.data.deleted == true &&
+                 request.resource.data.authorUid == 'deleted' &&
+                 request.resource.data.authorName == 'deleted user')
+              )
+            ) ||
+            (
+              isSignedIn() &&
+              resource.data.authorUid == request.auth.uid &&
+              resource.data.authorUid != 'deleted' &&
+              resource.data.deleted == false &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['body', 'updatedAt']) &&
+              request.resource.data.updatedAt == request.time
+            ) ||
+            (
+              isSignedIn() &&
+              resource.data.authorUid == request.auth.uid &&
+              resource.data.authorUid != 'deleted' &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'authorUid', 'authorName', 'body', 'deleted', 'updatedAt'
+              ]) &&
+              request.resource.data.authorUid in ['deleted', '', resource.data.authorUid] &&
+              request.resource.data.authorName == 'deleted user' &&
+              request.resource.data.deleted == true &&
+              request.resource.data.body == '[deleted]' &&
+              request.resource.data.updatedAt == request.time
+            )
+          );
+
+        allow delete: if isOneClickStaff() || (
+          isSignedIn() &&
+          resource.data.authorUid == request.auth.uid &&
+          resource.data.authorUid != 'deleted'
+        );
+      }
+    }
+
+    // Abuse/moderation flags: signed-in users may file open flags; staff only read/triage.
+    match /supportFlags/{flagId} {
+      allow read, delete: if isOneClickStaff();
+      allow create: if isSignedIn() &&
+        flagId.size() >= 1 && flagId.size() <= 128 &&
+        isValidSupportFlag(request.resource.data) &&
+        request.resource.data.reporterUid == request.auth.uid &&
+        request.resource.data.status == 'open' &&
+        request.resource.data.createdAt == request.time;
+      allow update: if isOneClickStaff() &&
+        isValidSupportFlag(request.resource.data) &&
+        request.resource.data.reporterUid == resource.data.reporterUid &&
+        request.resource.data.targetPath == resource.data.targetPath &&
+        request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    // Private beta tester board (posts + replies): beta testers and staff only.
+    match /betaPosts/{postId} {
+      allow read: if isBetaTester();
+
+      allow create: if isBetaTester() &&
+        postId.size() >= 1 && postId.size() <= 128 &&
+        isValidBetaPost(request.resource.data) &&
+        request.resource.data.authorUid == request.auth.uid &&
+        (request.resource.data.isTeam == false || isOneClickStaff()) &&
+        request.resource.data.hidden == false &&
+        request.resource.data.deleted == false &&
+        (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0) &&
+        (!('flagCount' in request.resource.data) || request.resource.data.flagCount == 0) &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time;
+
+      allow update: if isBetaTester() &&
+        isValidBetaPost(request.resource.data) &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.isTeam == resource.data.isTeam &&
+        (
+          (
+            isOneClickStaff() &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'title', 'body', 'version', 'pc', 'hidden', 'deleted',
+              'replyCount', 'lastReplyAt', 'flagCount', 'updatedAt',
+              'authorUid', 'authorName'
+            ]) &&
+            (
+              request.resource.data.authorUid == resource.data.authorUid ||
+              (request.resource.data.deleted == true &&
+               request.resource.data.authorUid == 'deleted' &&
+               request.resource.data.authorName == 'deleted user')
+            )
+          ) ||
+          (
+            resource.data.authorUid == request.auth.uid &&
+            resource.data.authorUid != 'deleted' &&
+            resource.data.deleted == false &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'title', 'body', 'version', 'pc', 'updatedAt'
+            ]) &&
+            request.resource.data.updatedAt == request.time
+          ) ||
+          (
+            resource.data.authorUid == request.auth.uid &&
+            resource.data.authorUid != 'deleted' &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'authorUid', 'authorName', 'body', 'pc', 'deleted', 'updatedAt'
+            ]) &&
+            request.resource.data.authorUid in ['deleted', '', resource.data.authorUid] &&
+            request.resource.data.authorName == 'deleted user' &&
+            request.resource.data.deleted == true &&
+            request.resource.data.body == '[deleted]' &&
+            request.resource.data.updatedAt == request.time
+          ) ||
+          (
+            resource.data.hidden == false &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'replyCount', 'lastReplyAt', 'updatedAt'
+            ]) &&
+            request.resource.data.replyCount is int &&
+            request.resource.data.replyCount == resource.data.get('replyCount', 0) + 1 &&
+            request.resource.data.lastReplyAt == request.time &&
+            request.resource.data.updatedAt == request.time
+          )
+        );
+
+      allow delete: if isOneClickStaff() || (
+        isBetaTester() &&
+        resource.data.authorUid == request.auth.uid &&
+        resource.data.authorUid != 'deleted'
+      );
+
+      match /replies/{replyId} {
+        allow read: if isBetaTester();
+
+        allow create: if isBetaTester() &&
+          replyId.size() >= 1 && replyId.size() <= 128 &&
+          isValidBetaReply(request.resource.data) &&
+          request.resource.data.authorUid == request.auth.uid &&
+          (request.resource.data.isTeam == false || isOneClickStaff()) &&
+          request.resource.data.hidden == false &&
+          request.resource.data.deleted == false &&
+          request.resource.data.createdAt == request.time &&
+          request.resource.data.updatedAt == request.time &&
+          exists(/databases/$(database)/documents/betaPosts/$(postId));
+
+        allow update: if isBetaTester() &&
+          isValidBetaReply(request.resource.data) &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.isTeam == resource.data.isTeam &&
+          (
+            (
+              isOneClickStaff() &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'body', 'hidden', 'deleted', 'updatedAt', 'authorUid', 'authorName'
+              ]) &&
+              (
+                request.resource.data.authorUid == resource.data.authorUid ||
+                (request.resource.data.deleted == true &&
+                 request.resource.data.authorUid == 'deleted' &&
+                 request.resource.data.authorName == 'deleted user')
+              )
+            ) ||
+            (
+              resource.data.authorUid == request.auth.uid &&
+              resource.data.authorUid != 'deleted' &&
+              resource.data.deleted == false &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['body', 'updatedAt']) &&
+              request.resource.data.updatedAt == request.time
+            ) ||
+            (
+              resource.data.authorUid == request.auth.uid &&
+              resource.data.authorUid != 'deleted' &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'authorUid', 'authorName', 'body', 'deleted', 'updatedAt'
+              ]) &&
+              request.resource.data.authorUid in ['deleted', '', resource.data.authorUid] &&
+              request.resource.data.authorName == 'deleted user' &&
+              request.resource.data.deleted == true &&
+              request.resource.data.body == '[deleted]' &&
+              request.resource.data.updatedAt == request.time
+            )
+          );
+
+        allow delete: if isOneClickStaff() || (
+          isBetaTester() &&
+          resource.data.authorUid == request.auth.uid &&
+          resource.data.authorUid != 'deleted'
+        );
+      }
+    }
+
+    // Pinned team notes & current build links on oneclick-dash.
+    match /betaNotes/{noteId} {
+      allow read: if isBetaTester();
+      allow create: if isOneClickStaff() &&
+        noteId.size() >= 1 && noteId.size() <= 128 &&
+        isValidBetaNote(request.resource.data) &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time;
+      allow update: if isOneClickStaff() &&
+        isValidBetaNote(request.resource.data) &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.updatedAt == request.time;
+      allow delete: if isOneClickStaff();
+    }
+
+    // Hardware/feature test checklist rows on oneclick-dash.
+    match /betaChecks/{checkId} {
+      allow read: if isBetaTester();
+      allow create: if isBetaTester() &&
+        checkId.size() >= 1 && checkId.size() <= 200 &&
+        isValidBetaCheck(request.resource.data) &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.updatedAt == request.time;
+      allow update: if isBetaTester() &&
+        isValidBetaCheck(request.resource.data) &&
+        resource.data.uid == request.auth.uid &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.updatedAt == request.time;
+      allow delete: if isOneClickStaff() || (
+        isBetaTester() && resource.data.uid == request.auth.uid
+      );
+    }
+  }
+}
