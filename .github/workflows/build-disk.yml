@@ -274,11 +274,7 @@ jobs:
               CONFIG="disk_config/raw.toml"
               ;;
           esac
-          if [ "${DISK_TYPE}" = "anaconda-iso" ]; then
-            LIBREPO_FLAG="--use-librepo=False"
-          else
-            LIBREPO_FLAG="--use-librepo=True"
-          fi
+          LIBREPO_FLAG="--use-librepo=True"
           echo "Using config=${CONFIG} librepo=${LIBREPO_FLAG} extra='${EXTRA}' build_ref=${BUILD_REF}"
           sudo podman run --rm quay.io/centos-bootc/bootc-image-builder:latest build --help || true
           mkdir -p output
