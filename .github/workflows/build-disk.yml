@@ -54,6 +54,23 @@ jobs:
           echo "USER_GID=$(id -g)" >> "${GITHUB_ENV}"
           echo "${TOKEN}" | sudo podman login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
 
+      # The installer builder picks its package sources from the image's ID.
+      # Ours says "bazzite", which it does not know, so it finds no packages
+      # at all. Build the installer from a copy that says "fedora". The
+      # installed PC then switches to the real image (see iso.toml), so the
+      # copy never reaches anyone.
+      - name: Make the installer source image
+        if: inputs.type == 'anaconda-iso'
+        run: |
+          sudo podman pull "${IMAGE_REF}"
+          printf 'FROM %s\nRUN sed -i "s/^ID=.*/ID=fedora/" /usr/lib/os-release\n' "${IMAGE_REF}" > /tmp/Containerfile.installer
+          sudo podman build -t localhost/oneclick-installer-source:latest -f /tmp/Containerfile.installer /tmp
+          echo "BUILD_REF=localhost/oneclick-installer-source:latest" >> "${GITHUB_ENV}"
+
+      - name: Use the image as is
+        if: inputs.type != 'anaconda-iso'
+        run: echo "BUILD_REF=${IMAGE_REF}" >> "${GITHUB_ENV}"
+
       # Ubuntu's AppArmor blocks the mounts the disk builder makes inside its container.
       - name: Turn off AppArmor on the build machine
         run: sudo aa-teardown || true
@@ -64,7 +81,7 @@ jobs:
         with:
           builder-image: quay.io/centos-bootc/bootc-image-builder:latest
           config-file: ${{ inputs.type == 'anaconda-iso' && './disk_config/iso.toml' || './disk_config/disk.toml' }}
-          image: ${{ env.IMAGE_REF }}
+          image: ${{ env.BUILD_REF }}
           chown: ${{ env.USER_UID }}:${{ env.USER_GID }}
           types: ${{ inputs.type }}
           # The Fedora base of the preview does not declare a default filesystem, so name one.
