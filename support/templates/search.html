@@ -1,0 +1,21 @@
+<div class="wrap pagehead">
+  <p class="crumbs"><a href="/">Support</a><span>/</span>Search</p>
+  <span class="chapter">find a guide</span>
+  <h1>Search the guides</h1>
+  <div class="search-wrap" id="search-app">
+    <form class="sbar" action="/search" method="get" role="search">
+      <label for="q" class="sr-only">Search the guides</label>
+      <svg class="sico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+      <input id="q" name="q" type="search" autocomplete="off" placeholder="Try printer, Steam, or undo an update">
+      <button class="btn" type="submit">Search</button>
+    </form>
+    
+  </div>
+</div>
+<section class="list-sec">
+  <div class="wrap">
+    <p id="search-status" class="status-note" aria-live="polite"></p>
+    <div id="results" class="results"></div>
+    <p id="empty" class="empty" hidden></p>
+  </div>
+</section>

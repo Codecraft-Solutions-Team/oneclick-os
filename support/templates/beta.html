@@ -1,0 +1,70 @@
+<div class="wrap pagehead">
+  <p class="crumbs"><a href="/">Support</a><span>/</span>Beta testers</p>
+  <span class="chapter">private tester board</span>
+  <h1>Beta testers</h1>
+  <p>A private board where approved beta testers and the OneClick team share notes and test findings.</p>
+</div>
+<section class="list-sec">
+  <div class="wrap" id="beta-board-app">
+    <div id="beta-gate-signed-out" class="honest beta-gate">
+      <h2>Sign in to check beta access</h2>
+      <p>This area is only open to OneClick OS beta testers and the team. Sign in on your support account to continue.</p>
+      <p class="muted">Your browser keeps sign-in separate between this support site and the Beta Tester Dashboard, so you sign in once on each web address.</p>
+      <div class="form-actions">
+        <a class="btn" href="/account">Sign in on Support account</a>
+        <a class="btn ghost" href="/reports">Read public reports</a>
+      </div>
+    </div>
+
+    <div id="beta-gate-not-tester" class="honest beta-gate" hidden>
+      <h2>Beta access is not turned on for this account</h2>
+      <p>You are signed in, but this account is not on the beta tester list yet. You can still read all help guides, post public reports, and reply on the Reports page.</p>
+      <p class="muted">If you were invited as a beta tester, make sure you signed in with the email address you gave us, or email <a href="mailto:oneclick@codecraftsol.org">oneclick@codecraftsol.org</a>.</p>
+      <div class="form-actions">
+        <a class="btn" href="/account">Go to Account</a>
+        <a class="btn ghost" href="/reports">Go to Reports</a>
+      </div>
+    </div>
+
+    <div id="beta-panel" hidden>
+      <div class="honest beta-banner">
+        <div>
+          <h2>Tester discussion board</h2>
+          <p>Only beta testers and the OneClick team can read or post here. Open the <a href="https://oneclick-dash.web.app" rel="noopener">Beta Tester Dashboard</a> for pinned test notes, build links, reply alerts and your hardware checklist.</p>
+        </div>
+        <a class="btn" href="https://oneclick-dash.web.app" rel="noopener">Open Beta Dashboard</a>
+      </div>
+
+      <form id="beta-new-post-form" class="report comm-form">
+        <div class="callout warn" role="note">
+          <strong>Shared with all beta testers and the OneClick team.</strong> Do not put passwords, addresses, phone numbers or private keys here.
+        </div>
+        <label>Title
+          <input name="title" type="text" required minlength="3" maxlength="160" placeholder="For example: Installer USB boot on ThinkPad T480">
+        </label>
+        <label>Notes or what happened
+          <textarea name="body" rows="4" required minlength="2" maxlength="4000" placeholder="Share what you tested, what worked, or what broke."></textarea>
+        </label>
+        <div class="field-row">
+          <label>Your computer (optional)
+            <input name="pc" type="text" maxlength="160" placeholder="For example: Lenovo ThinkPad T480">
+          </label>
+          <label>OneClick version (optional)
+            <input name="version" type="text" maxlength="60" placeholder="For example: 0.1-test">
+          </label>
+        </div>
+        <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <div class="form-actions">
+          <button class="btn" type="submit">Post to beta board</button>
+        </div>
+        <p id="beta-new-status" class="form-status" aria-live="polite"></p>
+      </form>
+
+      <div id="beta-posts-list" class="comm-list" aria-live="polite">
+        <p class="muted">Loading beta tester posts...</p>
+      </div>
+
+      <div id="beta-thread-view" class="thread-view" hidden></div>
+    </div>
+  </div>
+</section>

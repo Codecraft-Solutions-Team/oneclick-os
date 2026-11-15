@@ -7,7 +7,7 @@ OneClick OS never updates behind your back. Nothing downloads, installs or resta
 ## Check for an update
 
 1. Open the **Start menu** and choose **Update**. You can also open **Settings** and pick **Update**.
-2. Press **Check for updates**. This takes a few seconds and downloads nothing.
+2. Press **Check now**. This takes a few seconds and downloads nothing.
 3. If there is a new version, you see its name and its size in megabytes.
 
 ## Download it your way
@@ -23,10 +23,10 @@ While it downloads you see a progress bar, how many megabytes have arrived, and 
 
 ## Full or security only
 
-Under **What to install** you choose one of two:
+Under **Updates to receive** you choose one of two:
 
 - **Full** gives you new features, fixes and security fixes.
-- **Security fixes only** keeps the system as it is and installs only fixes for security problems.
+- **Security only** keeps the system as it is and installs only fixes for security problems.
 
 You can change this at any time. It applies from the next check.
 

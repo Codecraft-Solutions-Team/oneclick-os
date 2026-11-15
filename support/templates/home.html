@@ -1,0 +1,24 @@
+<div class="wrap pagehead home-head">
+  <span class="chapter">help and guides</span>
+  <h1>How can we help?</h1>
+  <p>Plain answers for people coming from Windows. ${total_articles} guides, no jargon.</p>
+  <div class="search-wrap">
+    <form class="sbar" action="/search" method="get" role="search">
+      <label for="q" class="sr-only">Search the guides</label>
+      <svg class="sico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+      <input id="q" name="q" type="search" autocomplete="off" placeholder="Try printer, Steam, or undo an update">
+      <button class="btn" type="submit">Search</button>
+    </form>
+    <div id="live-search" class="results" aria-live="polite" hidden></div>
+  </div>
+</div>
+<section class="topics-sec">
+  <div class="wrap">
+    <div class="topics">${categories_ledger}</div>
+    <div class="honest stuck">
+      <div><h3>Did not find it?</h3>
+      <p>Tell us what went wrong. No account needed, and we answer by email if you leave one.</p></div>
+      <a class="btn" href="/reports">Report a problem</a>
+    </div>
+  </div>
+</section>

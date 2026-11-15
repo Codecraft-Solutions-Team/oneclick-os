@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title}</title>
+<meta name="description" content="${description}">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240'%3E%3Cpath d='M74 66 A76 76 0 1 0 166 66' fill='none' stroke='%232dd4bf' stroke-width='26' stroke-linecap='round'/%3E%3Ccircle cx='120' cy='52' r='17' fill='%23fff'/%3E%3C/svg%3E">
+<script>
+(function () {
+  var d = document.documentElement, s = 'story';
+  try {
+    var qs = new URLSearchParams(location.search).get('style');
+    if (qs === 'classic' || qs === 'story') localStorage.setItem('oneclick-style', qs);
+    s = localStorage.getItem('oneclick-style') || s;
+  } catch (e) {}
+  d.dataset.style = s === 'classic' ? 'classic' : 'story';
+  var t = null;
+  try { t = localStorage.getItem('oneclick-theme'); } catch (e) {}
+  d.dataset.theme = t || (d.dataset.style === 'story' || matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+})();
+</script>
+<link rel="stylesheet" href="/assets/site.css?v=4">
+<link rel="stylesheet" href="/assets/story.css?v=4">
+<link rel="stylesheet" href="/static/support.css?v=5">
+</head>
+<body>
+<div class="devbar">Early test version, still being built. Expect bugs. <a href="https://oneclickos.org/test-version">Read this before installing</a><a class="rep" href="/reports">Report a problem</a></div>
+<header class="top">
+  <div class="wrap">
+    <a href="/" class="brand"><img data-wordmark src="/assets/wordmark-dark.svg" alt="OneClick OS"><span class="site-tag">Support</span></a>
+    <nav aria-label="Support navigation"><a href="/"${nav_topics_attr}>Guides</a><a href="/search"${nav_search_attr}>Search</a><a href="/reports"${nav_reports_attr}>Reports</a><a href="/beta"${nav_beta_attr}>Beta</a><a href="/account"${nav_account_attr}>Account</a><a class="nav-ext" href="https://oneclickos.org">Main site</a></nav>
+    <button id="theme" type="button" aria-label="Switch between light and dark"><svg class="moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg><svg class="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.400 1.400M17.7 17.7l1.400 1.400M4.9 19.1l1.400-1.400M17.7 6.3l1.400-1.400"/></svg></button>
+    <button id="menu" type="button" aria-label="Menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  </div>
+</header>
+<main>
+${body}
+</main>
+<footer>
+  <div class="wrap">
+    <span>OneClick OS is made by Codecraft Solutions Studio. Free and open source. An early test version, not finished.</span>
+    <nav aria-label="Footer links"><a href="https://oneclickos.org">Main site</a><a href="/reports">Report a problem</a><a href="https://oneclickos.org/test-version">Test version notice</a><a href="https://oneclickos.org/terms">Terms of use</a><a href="https://oneclickos.org/privacy">Privacy policy</a></nav>
+  </div>
+</footer>
+<script src="/static/support.js?v=5"></script>
+</body>
+</html>

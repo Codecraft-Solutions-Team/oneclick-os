@@ -1,0 +1,134 @@
+<div class="wrap pagehead">
+  <p class="crumbs"><a href="/">Support</a><span>/</span>Reports</p>
+  <span class="chapter">tell us what broke</span>
+  <h1>Problem reports</h1>
+  <p>Read public reports from other testers, post your own, or send a private report without an account.</p>
+</div>
+<section class="list-sec">
+  <div class="wrap report-layout">
+    <div class="report-main">
+      <div class="tabs-bar" role="tablist" aria-label="Report mode">
+        <button id="report-tab-community" type="button" class="tab-btn" role="tab" aria-selected="true" aria-controls="community-panel">Community reports</button>
+        <button id="report-tab-private" type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="private-panel">Send private report</button>
+      </div>
+
+      <div id="community-panel" class="tab-panel" role="tabpanel" aria-labelledby="report-tab-community">
+        <div id="community-reports-app">
+          <div id="comm-auth-bar" class="comm-auth-bar">
+            <p>Anyone can read public reports. <a href="/account">Sign in on your support account</a> to post or reply. Sign-in is kept separate per web address, so this site and the <a href="https://oneclick-dash.web.app">Beta Tester Dashboard</a> sign in separately.</p>
+          </div>
+
+          <div class="comm-controls">
+            <label class="ctrl-field">
+              <span class="sr-only">Filter by topic</span>
+              <select id="comm-filter-cat" aria-label="Filter by topic">
+                <option value="">All topics</option>
+                <option value="getting-started">Getting started</option>
+                <option value="desktop">Using the desktop</option>
+                <option value="apps">Apps</option>
+                <option value="gaming">Gaming</option>
+                <option value="settings">Settings and hardware</option>
+                <option value="updates">Updates and safety</option>
+                <option value="windows">Coming from Windows</option>
+                <option value="troubleshooting">Fixing problems</option>
+                <option value="general">General</option>
+              </select>
+            </label>
+            <label class="ctrl-field">
+              <span class="sr-only">Filter by status</span>
+              <select id="comm-filter-status" aria-label="Filter by status">
+                <option value="">All statuses</option>
+                <option value="new">New</option>
+                <option value="looking">Looking into it</option>
+                <option value="fixed">Fixed</option>
+                <option value="not a bug">Not a bug</option>
+                <option value="duplicate">Duplicate</option>
+              </select>
+            </label>
+            <button id="comm-new-btn" type="button" class="btn">Post public report</button>
+          </div>
+
+          <form id="comm-new-form" class="report comm-form" hidden>
+            <div class="callout warn" role="note">
+              <strong>This is public. Do not put passwords, addresses or phone numbers here.</strong> Your display name is shown; your email address is never shown.
+            </div>
+            <label>Short title
+              <input name="title" type="text" required minlength="3" maxlength="160" placeholder="For example: Update window closes when I click Check">
+            </label>
+            <label>Topic
+              <select name="category" required>
+                <option value="troubleshooting">Fixing problems</option>
+                <option value="getting-started">Getting started</option>
+                <option value="desktop">Using the desktop</option>
+                <option value="apps">Apps</option>
+                <option value="gaming">Gaming</option>
+                <option value="settings">Settings and hardware</option>
+                <option value="updates">Updates and safety</option>
+                <option value="windows">Coming from Windows</option>
+                <option value="general">General</option>
+              </select>
+            </label>
+            <label>What happened?
+              <textarea name="what" rows="4" required minlength="5" maxlength="4000" placeholder="Tell us what you clicked and what happened."></textarea>
+            </label>
+            <label>What did you expect to happen?
+              <textarea name="expected" rows="2" maxlength="2000" placeholder="Optional"></textarea>
+            </label>
+            <div class="field-row">
+              <label>Your computer (optional)
+                <input name="pc" type="text" maxlength="160" placeholder="For example: Lenovo ThinkPad T450s">
+              </label>
+              <label>OneClick version (optional)
+                <input name="version" type="text" maxlength="60" placeholder="For example: 0.1">
+              </label>
+            </div>
+            <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <div class="form-actions">
+              <button class="btn" type="submit">Post public report</button>
+            </div>
+            <p id="comm-new-status" class="form-status" aria-live="polite"></p>
+          </form>
+
+          <div id="community-reports-list" class="comm-list" aria-live="polite">
+            <p class="muted">Loading community reports...</p>
+          </div>
+
+          <div id="comm-thread-view" class="thread-view" hidden></div>
+        </div>
+      </div>
+
+      <div id="private-panel" class="tab-panel" role="tabpanel" aria-labelledby="report-tab-private" hidden>
+        <p class="panel-intro">No account needed. Send a report directly to Codecraft staff.</p>
+        <form id="report" class="report">
+          <label>What kind of problem is it?
+            <select name="kind"><option>Something doesn't work</option><option>It won't install or start</option><option>A game or app won't run</option><option>It looks wrong</option><option>An idea or request</option><option>A problem with this website</option></select></label>
+          <label>What happened? <textarea name="what" rows="4" required placeholder="For example: I clicked Update and the window closed by itself."></textarea></label>
+          <label>What did you expect to happen? <textarea name="expected" rows="2"></textarea></label>
+          <label>Your computer (make and model, if you know it) <input name="pc" placeholder="For example: Lenovo ThinkPad T450s"></label>
+          <label>OneClick version (Settings, then Update) <input name="version" placeholder="For example: 0.1"></label>
+          <label>Your email, only if you want a reply <input name="email" type="email" placeholder="Optional. Never shown publicly"></label>
+          <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <button class="btn" type="submit">Send report</button>
+          <p class="updated" id="report-note">Your report is posted on our public issue list so other testers can see it, with your email and anything that looks private (emails, phone numbers, keys) removed. The full report, with your email, goes only to a private inbox that Codecraft staff read. Please still don't include passwords.</p>
+          <div class="sent" id="sent" hidden></div>
+        </form>
+      </div>
+    </div>
+
+    <aside class="report-side">
+      <div class="honest">
+        <h3>Before you send</h3>
+        <ul>
+          <li><a href="/search">Search the guides</a>. The fix may already be written down.</li>
+          <li><a href="/troubleshooting/get-details-for-a-report">Find the details we ask for</a>.</li>
+          <li>If an update caused it, you can <a href="/updates/undo-an-update">undo the update</a> first.</li>
+        </ul>
+      </div>
+      <div class="honest">
+        <h3>Two places, same inbox</h3>
+        <p>The private form here and the one at <a href="https://oneclickos.org/report">oneclickos.org/report</a> go to the same team. Use whichever you are on.</p>
+        <p><a href="https://github.com/Codecraft-Solutions-Team/oneclick-os/issues?q=is%3Aissue+label%3A%22tester+report%22" rel="noopener">See issues on GitHub</a></p>
+      </div>
+    </aside>
+  </div>
+</section>
