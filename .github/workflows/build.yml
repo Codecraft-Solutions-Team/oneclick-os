@@ -9,6 +9,14 @@ on:
       - 'website/**'
       - 'design/**'
       - 'disk_config/**'
+      - 'support/**'
+      - 'dash/**'
+      - 'firestore.rules'
+      - 'firebase.json'
+      - 'tests/**'
+      - 'tools/**'
+      - '.gitignore'
+      - '.github/workflows/build-disk.yml'
   schedule:
     - cron: '05 10 * * *' # daily, to pick up the base image's updates
   workflow_dispatch:

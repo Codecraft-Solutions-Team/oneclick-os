@@ -1,0 +1,6 @@
+# Ready-to-boot disk image for real PCs (written to USB/drive with dd).
+# No pre-created user account so first-run setup runs on first boot.
+
+[[customizations.filesystem]]
+mountpoint = "/"
+minsize = "24 GiB"

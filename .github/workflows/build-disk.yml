@@ -12,11 +12,12 @@ on:
           - oneclick-os
           - oneclick-os-nvidia
       type:
-        description: qcow2 = ready-to-boot VM disk, anaconda-iso = installer for a real PC
+        description: qcow2 = VM disk, raw = USB/disk image, anaconda-iso = PC installer
         required: true
         type: choice
         options:
           - qcow2
+          - raw
           - anaconda-iso
 
 jobs:
@@ -63,19 +64,186 @@ jobs:
         if: inputs.type == 'anaconda-iso'
         run: |
           sudo podman pull "${IMAGE_REF}"
-          cat > /tmp/Containerfile.installer <<EOF
+          rm -rf /tmp/installer-ctx
+          mkdir -p /tmp/installer-ctx
+          cat > /tmp/installer-ctx/prep_installer.py <<'PY'
+          import glob
+          import os
+          import re
+          import shutil
+
+          def show_dir(path):
+              print(f"=== ls -la {path} ===")
+              if not os.path.exists(path):
+                  print("(missing)")
+                  return
+              for entry in sorted(os.listdir(path)):
+                  full = os.path.join(path, entry)
+                  try:
+                      st = os.lstat(full)
+                      target = f" -> {os.readlink(full)}" if os.path.islink(full) else ""
+                      print(f"{entry} (mode={oct(st.st_mode)}){target}")
+                  except OSError as exc:
+                      print(f"{entry}: {exc}")
+
+          print("=== /usr/lib/os-release (before) ===")
+          with open("/usr/lib/os-release", "r", encoding="utf-8") as fh:
+              os_release_before = fh.read()
+          print(os_release_before)
+
+          for d in (
+              "/etc/yum.repos.d",
+              "/usr/share/dnf5/repos.d",
+              "/usr/lib/yum.repos.d",
+              "/etc/dnf/repos.override.d",
+              "/usr/share/dnf5/repos.override.d",
+              "/usr/share/pki/rpm-gpg",
+              "/etc/pki/rpm-gpg",
+              "/usr/lib/bootc/install",
+          ):
+              show_dir(d)
+
+          for d in ("/etc/dnf/repos.override.d", "/usr/share/dnf5/repos.override.d"):
+              if os.path.isdir(d):
+                  for entry in sorted(os.listdir(d)):
+                      full = os.path.join(d, entry)
+                      if os.path.isfile(full) or os.path.islink(full):
+                          print(f"=== override file {full} ===")
+                          try:
+                              with open(full, "r", encoding="utf-8", errors="replace") as fh:
+                                  print(fh.read())
+                          except OSError as exc:
+                              print(f"(read error: {exc})")
+
+          os.makedirs("/etc/yum.repos.d", exist_ok=True)
+          os.makedirs("/etc/pki/rpm-gpg", exist_ok=True)
+          os.makedirs("/etc/dnf/vars", exist_ok=True)
+
+          # Fedora 45 relocated default repo configs and GPG keys under /usr/share.
+          for src_dir in ("/usr/share/dnf5/repos.d", "/usr/lib/yum.repos.d"):
+              if os.path.isdir(src_dir):
+                  for src in sorted(glob.glob(os.path.join(src_dir, "fedora*.repo"))):
+                      dst = os.path.join("/etc/yum.repos.d", os.path.basename(src))
+                      if os.path.islink(dst) or not os.path.exists(dst):
+                          if os.path.lexists(dst):
+                              os.unlink(dst)
+                          shutil.copy2(src, dst)
+
+          if os.path.isdir("/usr/share/pki/rpm-gpg"):
+              for entry in sorted(os.listdir("/usr/share/pki/rpm-gpg")):
+                  src = os.path.join("/usr/share/pki/rpm-gpg", entry)
+                  dst = os.path.join("/etc/pki/rpm-gpg", entry)
+                  if os.path.islink(src):
+                      if os.path.lexists(dst):
+                          os.unlink(dst)
+                      os.symlink(os.readlink(src), dst)
+                  elif os.path.isdir(src):
+                      shutil.copytree(src, dst, dirs_exist_ok=True, symlinks=True)
+                  elif os.path.isfile(src):
+                      if os.path.islink(dst):
+                          os.unlink(dst)
+                      shutil.copy2(src, dst)
+
+          for d in ("/etc/dnf/repos.override.d", "/usr/share/dnf5/repos.override.d"):
+              if os.path.isdir(d):
+                  for entry in sorted(os.listdir(d)):
+                      full = os.path.join(d, entry)
+                      if os.path.isfile(full) or os.path.islink(full):
+                          os.unlink(full)
+
+          with open("/etc/dnf/vars/releasever", "w", encoding="utf-8") as fh:
+              fh.write("44\n")
+
+          # Tell bootc-image-builder / osbuild this installer copy targets Fedora 44.
+          lines = os_release_before.splitlines(keepends=True)
+          updates = {"ID": "fedora", "VERSION_ID": "44", "VARIANT_ID": "silverblue"}
+          seen = set()
+          new_lines = []
+          for line in lines:
+              matched = False
+              for key, val in updates.items():
+                  if line.startswith(f"{key}="):
+                      new_lines.append(f"{key}={val}\n")
+                      seen.add(key)
+                      matched = True
+                      break
+              if not matched:
+                  new_lines.append(line)
+          for key, val in updates.items():
+              if key not in seen:
+                  new_lines.append(f"{key}={val}\n")
+          with open("/usr/lib/os-release", "w", encoding="utf-8") as fh:
+              fh.writelines(new_lines)
+
+          def rewrite_repo(path, enable_sections, force_releasever=None):
+              with open(path, "r", encoding="utf-8") as fh:
+                  raw_lines = fh.readlines()
+              out = []
+              section = None
+              saw_enabled = False
+
+              def flush_enabled():
+                  nonlocal saw_enabled
+                  if section is None:
+                      return
+                  if not saw_enabled:
+                      val = "1" if section in enable_sections else "0"
+                      out.append(f"enabled={val}\n")
+                  saw_enabled = False
+
+              for raw in raw_lines:
+                  if force_releasever is not None:
+                      raw = raw.replace("${releasever}", force_releasever).replace("$releasever", force_releasever)
+                  stripped = raw.strip()
+                  m = re.match(r"^\[([^\]]+)\]$", stripped)
+                  if m:
+                      flush_enabled()
+                      section = m.group(1)
+                      saw_enabled = False
+                      out.append(raw)
+                      continue
+                  if section is not None and re.match(r"^\s*enabled\s*=", raw):
+                      val = "1" if section in enable_sections else "0"
+                      out.append(f"enabled={val}\n")
+                      saw_enabled = True
+                  else:
+                      out.append(raw)
+              flush_enabled()
+              with open(path, "w", encoding="utf-8") as fh:
+                  fh.writelines(out)
+
+          for repo_dir in ("/etc/yum.repos.d", "/usr/share/dnf5/repos.d"):
+              if not os.path.isdir(repo_dir):
+                  continue
+              for entry in sorted(os.listdir(repo_dir)):
+                  if not entry.endswith(".repo"):
+                      continue
+                  full = os.path.join(repo_dir, entry)
+                  if os.path.isfile(full):
+                      if entry in ("fedora.repo", "fedora-updates.repo"):
+                          rewrite_repo(full, {"fedora", "updates"}, force_releasever="44")
+                      elif entry.startswith("fedora"):
+                          rewrite_repo(full, set(), force_releasever="44")
+                      else:
+                          rewrite_repo(full, set(), force_releasever=None)
+
+          print("=== /usr/lib/os-release (after) ===")
+          with open("/usr/lib/os-release", "r", encoding="utf-8") as fh:
+              print(fh.read())
+          show_dir("/etc/yum.repos.d")
+          show_dir("/etc/pki/rpm-gpg")
+          PY
+          cat > /tmp/installer-ctx/Containerfile <<EOF
           FROM ${IMAGE_REF}
-          # Bazzite ships with the standard Fedora package sources switched off; the builder needs them.
-          RUN sed -i -e "s/^ID=.*/ID=fedora/" -e "s/^VERSION_ID=.*/VERSION_ID=43/" /usr/lib/os-release && \\
-              ls /etc/yum.repos.d && \\
-              for r in fedora fedora-updates; do \\
-                [ -f /etc/yum.repos.d/\$r.repo ] && sed -i "0,/^enabled=.*/s//enabled=1/" /etc/yum.repos.d/\$r.repo; \\
-              done; \\
-              dnf5 repolist --enabled
+          COPY prep_installer.py /tmp/prep_installer.py
+          RUN python3 /tmp/prep_installer.py && rm -f /tmp/prep_installer.py && \\
+              dnf5 makecache && \\
+              dnf5 repolist --enabled && \\
+              dnf5 repoquery --repo=fedora --repo=updates grub2-tools shim-x64 anaconda
           EOF
-          sed -i 's/^          //' /tmp/Containerfile.installer
-          cat /tmp/Containerfile.installer
-          sudo podman build -t localhost/oneclick-installer-source:latest -f /tmp/Containerfile.installer /tmp
+          cat /tmp/installer-ctx/Containerfile
+          sudo podman build -t localhost/oneclick-installer-source:latest -f /tmp/installer-ctx/Containerfile /tmp/installer-ctx
+          rm -rf /tmp/installer-ctx
           echo "BUILD_REF=localhost/oneclick-installer-source:latest" >> "${GITHUB_ENV}"
 
       - name: Use the image as is
@@ -91,18 +259,35 @@ jobs:
       - name: Build disk image
         id: build
         env:
-          CONFIG: ${{ inputs.type == 'anaconda-iso' && 'disk_config/iso.toml' || 'disk_config/disk.toml' }}
           # The Fedora base of the preview does not declare a default filesystem, so name one.
           EXTRA: ${{ inputs.image == 'oneclick-os-preview' && '--rootfs btrfs' || '' }}
         run: |
           [ "${BUILD_REF}" = "${IMAGE_REF}" ] && sudo podman pull "${IMAGE_REF}"
+          case "${DISK_TYPE}:${IMAGE}" in
+            anaconda-iso:*)
+              CONFIG="disk_config/iso.toml"
+              ;;
+            *:oneclick-os-preview)
+              CONFIG="disk_config/disk.toml"
+              ;;
+            *)
+              CONFIG="disk_config/raw.toml"
+              ;;
+          esac
+          if [ "${DISK_TYPE}" = "anaconda-iso" ]; then
+            LIBREPO_FLAG="--use-librepo=False"
+          else
+            LIBREPO_FLAG="--use-librepo=True"
+          fi
+          echo "Using config=${CONFIG} librepo=${LIBREPO_FLAG} extra='${EXTRA}' build_ref=${BUILD_REF}"
+          sudo podman run --rm quay.io/centos-bootc/bootc-image-builder:latest build --help || true
           mkdir -p output
           sudo podman run --rm --privileged --security-opt label=type:unconfined_t \
             --volume /var/lib/containers/storage:/var/lib/containers/storage \
             --volume ./output:/output \
             --volume "./${CONFIG}:/config.toml:ro" \
             quay.io/centos-bootc/bootc-image-builder:latest \
-            build --output /output --chown "${USER_UID}:${USER_GID}" --use-librepo=True \
+            build --output /output --chown "${USER_UID}:${USER_GID}" "${LIBREPO_FLAG}" \
             --type "${DISK_TYPE}" ${EXTRA} "${BUILD_REF}"
           echo "output-directory=output" >> "${GITHUB_OUTPUT}"
 
