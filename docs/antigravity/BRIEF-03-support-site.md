@@ -52,7 +52,34 @@ Cover at least:
 
 - `python3 support/build.py && firebase deploy --only hosting:oneclick-support --project codecraft-sol`. You may deploy this one site. Do not deploy the main site, functions, or touch DNS.
 - **Cloudflare is DNS only for this project; everything else is Firebase.**
-- Do **not** connect the custom domain. Tell the owner (see below).
+- Do **not** connect custom domains (`support.oneclickos.org`, `dash.betatesters.oneclickos.org`). Tell the owner (see below). You may create the Firebase hosting sites.
+
+## Task 4: accounts, community reports and replies
+
+People can sign in on the support site, post their own problem reports, and reply to reports (their own and others'). Beta testers get a richer account on a dashboard.
+
+**Accounts**
+- Firebase Authentication in project `codecraft-sol`, email and password plus email-link sign-in. No Google or social sign-in, no phone numbers, no third-party trackers or analytics.
+- One account for the support site and the dashboard (same Firebase project). Browser sign-in does not carry across different addresses, so people sign in once on each; say so plainly on the pages. A short display name is the only public detail. **Email addresses are never shown to other users.**
+- Account page: change display name, change email, change password, **delete my account** (removes the account and its posts or turns them into "deleted user").
+
+**Reports and replies**
+- Everyone can read public reports without signing in. Signing in is needed to post a report or reply.
+- A report has: title, what happened, what they expected, their computer (optional), OneClick version (optional), category, status (`new`, `looking`, `fixed`, `not a bug`, `duplicate`), and replies in a thread. Add a "Same problem for me" button (one per person).
+- Staff (Codecraft) replies are marked **OneClick team**. Staff status comes from a Firestore `staff` collection or custom claims set by us in the Firebase console, never from anything the user can write.
+- The existing report form on the main site (`/api/report`, function `oneclickReport`, private issue copy in `codecraft-workspace`) stays as it is. Do not edit `functions/index.js`'s existing function. If community reports need a function (for example to strip emails, phone numbers and keys from public text with the same `redact()` rules, or to notify staff), add a **new** function in the same codebase and keep it small.
+- **Privacy:** run the same cleaning on anything posted publicly (emails, phone-like numbers, IP addresses, key-like strings, "password is ..."). Show a clear warning above the post form: "This is public. Do not put passwords, addresses or phone numbers here."
+- **Abuse:** rate limits per user, honeypot, report/flag button on posts, staff can hide a post. Posts by brand-new accounts wait for approval only if spam becomes a problem; start simple and list the choice in the report.
+- **Firestore security rules are mandatory and must be tested** with the Firebase emulator or rules unit tests: users can only create posts as themselves, edit or delete only their own, cannot set status or staff flags, cannot read anyone's email or private fields. Put the rules in the repo and deploy them with `firebase deploy --only firestore:rules` **only if** the existing rules for other apps in this project keep working: read `firestore.rules` first, **merge** (never replace) and keep every existing rule for the other apps (this is a shared project). If you cannot be sure, stop and put it under "Needs the owner" instead of deploying.
+
+**Beta testers and the dashboard**
+- Site: `dash.betatesters.oneclickos.org` (option 1; `betatestersdash.oneclickos.org` is the fallback if the owner cannot add the first). Its own Firebase Hosting site `oneclick-dash` in project `codecraft-sol`, a third target in `firebase.json`. Same look as the main site.
+- A beta tester is a normal account with `betaTester: true` set by us (custom claim or `testers` collection, written only by staff). Owner decides who: add a simple staff-only page, or a short script in `tools/`, to add and remove testers by email.
+- The dashboard shows, only to that tester: their account details, their own reports and replies with status, notifications of new team replies, which version they are on (typed in or chosen, **never collected automatically**), test notes from the team (pinned messages), and a link to the installer when one exists. Testers see a "Beta testers" area on the support site too (a private board where only testers and staff can read and post).
+- No automatic data collection from the OS in this task. If a tester wants to share logs, they attach text themselves.
+- Update `website/privacy.html` text is **not yours to edit** (do not touch `website/`). Instead put the exact new privacy wording needed (what accounts store, how long, how to delete, who can see what) into the report under "Needs the owner", so it can be added before accounts open.
+
+**Do not turn accounts on for the public yet**: build and test everything, but keep sign-up closed behind a flag (`OPEN_SIGNUPS = false` in a config file, and an invite or "beta" code) until the owner has added the privacy wording and enabled the sign-in methods in the Firebase console (which you cannot do). List the console steps exactly under "Needs the owner".
 
 ## Do not touch
 
@@ -63,5 +90,6 @@ Cover at least:
 1. The support site looks like it belongs to the main site, in both styles, light and dark, phone and desktop.
 2. 120+ articles, all building, all checked against the real system, links valid, search works.
 3. Deployed to `https://oneclick-support.web.app`.
-4. `docs/antigravity/reports/BRIEF-03-report.md`: list of articles, the choices you made, what you checked on screen and what you only read from code, and **Needs the owner**: add the custom domain `support.oneclickos.org` (Firebase console, Hosting, site `oneclick-support`, Add custom domain; then a DNS-only CNAME at Cloudflare, shown by Firebase).
-5. Mailbox checked (`docs/antigravity/mailbox/check.sh`) right before saying done.
+4. Accounts, community reports with replies, and the beta tester dashboard work against the Firebase emulator (and live once the owner finishes the console steps), with security rules tested.
+5. `docs/antigravity/reports/BRIEF-03-report.md`: list of articles, the choices you made, what you checked on screen and what you only read from code, and **Needs the owner**: add the custom domain `support.oneclickos.org` (Firebase console, Hosting, site `oneclick-support`, Add custom domain; then a DNS-only record at Cloudflare, shown by Firebase), the same for `dash.betatesters.oneclickos.org`, which needs its own record, plus the Firebase console steps for Authentication.
+6. Mailbox checked (`docs/antigravity/mailbox/check.sh`) right before saying done.
