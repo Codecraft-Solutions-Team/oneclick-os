@@ -66,7 +66,7 @@ jobs:
           cat > /tmp/Containerfile.installer <<EOF
           FROM ${IMAGE_REF}
           # Bazzite ships with the standard Fedora package sources switched off; the builder needs them.
-          RUN sed -i "s/^ID=.*/ID=fedora/" /usr/lib/os-release && \\
+          RUN sed -i -e "s/^ID=.*/ID=fedora/" -e "s/^VERSION_ID=.*/VERSION_ID=44/" /usr/lib/os-release && \\
               ls /etc/yum.repos.d && \\
               for r in fedora fedora-updates; do \\
                 [ -f /etc/yum.repos.d/\$r.repo ] && sed -i "0,/^enabled=.*/s//enabled=1/" /etc/yum.repos.d/\$r.repo; \\
