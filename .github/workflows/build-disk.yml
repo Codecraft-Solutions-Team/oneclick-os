@@ -75,17 +75,25 @@ jobs:
       - name: Turn off AppArmor on the build machine
         run: sudo aa-teardown || true
 
+      # Run the disk builder directly (its wrapper action always re-downloads
+      # the image, which would skip the installer copy made above).
       - name: Build disk image
         id: build
-        uses: osbuild/bootc-image-builder-action@8661cd3832544ad68c12dcde8681b13ab0f56a8d # main
-        with:
-          builder-image: quay.io/centos-bootc/bootc-image-builder:latest
-          config-file: ${{ inputs.type == 'anaconda-iso' && './disk_config/iso.toml' || './disk_config/disk.toml' }}
-          image: ${{ env.BUILD_REF }}
-          chown: ${{ env.USER_UID }}:${{ env.USER_GID }}
-          types: ${{ inputs.type }}
+        env:
+          CONFIG: ${{ inputs.type == 'anaconda-iso' && 'disk_config/iso.toml' || 'disk_config/disk.toml' }}
           # The Fedora base of the preview does not declare a default filesystem, so name one.
-          additional-args: ${{ inputs.image == 'oneclick-os-preview' && '--use-librepo=True --rootfs btrfs' || '--use-librepo=True' }}
+          EXTRA: ${{ inputs.image == 'oneclick-os-preview' && '--rootfs btrfs' || '' }}
+        run: |
+          [ "${BUILD_REF}" = "${IMAGE_REF}" ] && sudo podman pull "${IMAGE_REF}"
+          mkdir -p output
+          sudo podman run --rm --privileged --security-opt label=type:unconfined_t \
+            --volume /var/lib/containers/storage:/var/lib/containers/storage \
+            --volume ./output:/output \
+            --volume "./${CONFIG}:/config.toml:ro" \
+            quay.io/centos-bootc/bootc-image-builder:latest \
+            build --output /output --chown "${USER_UID}:${USER_GID}" --use-librepo=True \
+            --type "${DISK_TYPE}" ${EXTRA} "${BUILD_REF}"
+          echo "output-directory=output" >> "${GITHUB_OUTPUT}"
 
       - name: Upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
