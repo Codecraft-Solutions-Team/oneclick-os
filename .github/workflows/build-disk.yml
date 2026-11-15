@@ -63,7 +63,18 @@ jobs:
         if: inputs.type == 'anaconda-iso'
         run: |
           sudo podman pull "${IMAGE_REF}"
-          printf 'FROM %s\nRUN sed -i "s/^ID=.*/ID=fedora/" /usr/lib/os-release\n' "${IMAGE_REF}" > /tmp/Containerfile.installer
+          cat > /tmp/Containerfile.installer <<EOF
+          FROM ${IMAGE_REF}
+          # Bazzite ships with the standard Fedora package sources switched off; the builder needs them.
+          RUN sed -i "s/^ID=.*/ID=fedora/" /usr/lib/os-release && \\
+              ls /etc/yum.repos.d && \\
+              for r in fedora fedora-updates; do \\
+                [ -f /etc/yum.repos.d/\$r.repo ] && sed -i "0,/^enabled=.*/s//enabled=1/" /etc/yum.repos.d/\$r.repo; \\
+              done; \\
+              dnf5 repolist --enabled
+          EOF
+          sed -i 's/^          //' /tmp/Containerfile.installer
+          cat /tmp/Containerfile.installer
           sudo podman build -t localhost/oneclick-installer-source:latest -f /tmp/Containerfile.installer /tmp
           echo "BUILD_REF=localhost/oneclick-installer-source:latest" >> "${GITHUB_ENV}"
 
