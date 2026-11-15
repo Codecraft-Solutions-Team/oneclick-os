@@ -3,3 +3,4 @@ output/
 *.iso
 *.fd
 .DS_Store
+support/public/
